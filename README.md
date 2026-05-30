@@ -61,6 +61,9 @@ Cloned the repo instead? Run `bash claude-pet-install.sh`.
 
 It drops the pet **and** the statusline wrapper into `~/.claude` and wires `settings.json` (`refreshInterval: 1`, which drives the ~1 fps animation) with a timestamped backup.
 
+> [!NOTE]
+> This installs a **full statusline** — pet · model · directory · git branch · context % · cache — and **replaces** any existing `statusLine` you have (a timestamped backup of `settings.json` is kept). If you only want the mascot, point your `statusLine` at `~/.claude/scripts/claude-pet --statusline` instead.
+
 ---
 
 <p align="center"><sub>Made with 🐾 for Claude Code statuslines.</sub></p>
