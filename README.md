@@ -46,9 +46,9 @@ Here's the full cast:
 
 ### Requirements
 
-- **[Claude Code CLI](https://docs.claude.com/en/docs/claude-code)** (`npm install -g @anthropic-ai/claude-code`)
+- **[Claude Code](https://code.claude.com/docs)** — Anthropic's CLI; see the docs to install.
 - **[`jq`](https://jqlang.github.io/jq/)** — **required**: the installer edits `settings.json` with it, and the statusline wrapper parses the context JSON on every redraw. Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu).
-- **Bash ≥ 3.2** — the pet and wrapper are Bash scripts (ships with macOS and Linux).
+- **Bash ≥ 3.2** — the pet and wrapper are Bash scripts (macOS/Linux have it; on **Windows** run the install in **Git Bash or WSL**, not PowerShell).
 - **A Modern Terminal** - For color support. 
 
 ### One command
@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/AmirYa412/claude-code-pet/main/clau
 
 Cloned the repo instead? Run `bash claude-pet-install.sh`.
 
-It drops the pet **and** the statusline wrapper into `~/.claude` and wires `settings.json` (`refreshInterval: 1`, which drives the ~1 fps animation) with a timestamped backup — so you get the full context-aware version out of the box: relaxed → exhausted → panic. Idempotent, safe to re-run.
+It drops the pet **and** the statusline wrapper into `~/.claude` and wires `settings.json` (`refreshInterval: 1`, which drives the ~1 fps animation) with a timestamped backup.
 
 ---
 

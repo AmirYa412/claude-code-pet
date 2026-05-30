@@ -195,7 +195,7 @@ input=$(cat)
 # Context usage is null on most idle renders, so cache the last-known value
 # per session (fork-free read/write) — keeps the pet's mood and the ctx text
 # steady instead of flickering. Then derive the mood: 0 = relaxed (0-40%),
-# 1 = focused (41%+).
+# 1 = exhausted (41-69%), 2 = panic (70%+).
 safe_session="${session_id//[^A-Za-z0-9_-]/}"
 ctx_cache="${TMPDIR:-/tmp}/claude-statusline.ctx${safe_session:+.$safe_session}"
 if [ -n "$used" ]; then
