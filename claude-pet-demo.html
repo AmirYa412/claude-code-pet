@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>claude-pet — animated Claude Code statusline mascot</title>
+<style>
+ :root{--orange:#dc6e4b;--orange-soft:#e88a6b;--bg:#16130f;--card:#211c17;--line:#3a3026;--ink:#f3ece4;--dim:#a99e90;--yellow:#ffd778}
+ *{box-sizing:border-box}
+ body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#2a2118 0%,var(--bg) 60%);color:var(--ink);font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6;padding:0 20px 80px}
+ .wrap{max-width:880px;margin:0 auto}
+ .ctxr{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+ header{text-align:center;padding:48px 0 14px}
+ h1{font-size:42px;margin:16px 0 6px;letter-spacing:-.5px}.paw{color:var(--orange)}
+ .tag{color:var(--dim);font-size:18px;margin:0}
+ .pet-mono{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",Consolas,monospace;white-space:pre;font-variant-emoji:text}
+ .stage{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 22px;margin:24px 0;text-align:center}
+ .tabs{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+ .tab{cursor:pointer;font-size:14px;padding:9px 20px;background:#1a1610;color:var(--dim);user-select:none}
+ .tab+.tab{border-left:1px solid var(--line)}
+ #hero{font-size:80px;line-height:1.5;min-height:1.5em;position:relative;margin-bottom:8px}
+ .cyc{position:relative;height:1.5em;--d:12s}
+ .cyc .fr{position:absolute;left:0;right:0;top:0;opacity:0;animation:flick12 var(--d) infinite}
+ @keyframes flick12{0%{opacity:1}8.33%{opacity:1}8.34%{opacity:0}100%{opacity:0}}
+ .cyc-foc{display:none}
+ .body{background:var(--orange);border-radius:12px;display:inline-block;padding:4px 0}
+ .deco{display:inline-block;padding:4px 0}
+ .controls{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:30px}
+ .ctxbadge{font-family:ui-monospace,Menlo,monospace;font-size:15px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:#1a1610;color:#62c462;min-width:96px}
+ .ctxbadge::after{content:"ctx: 20%"}
+ .ctxbar{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+ .pip{cursor:pointer;font-family:ui-monospace,Menlo,monospace;font-size:13px;padding:7px 13px;background:#1a1610;color:var(--dim);user-select:none}
+ .pip+.pip{border-left:1px solid var(--line)}
+ .hint{color:var(--dim);font-size:12px}
+ h2{font-size:23px;margin:46px 0 8px;border-bottom:1px solid var(--line);padding-bottom:8px}
+ .setnote{color:var(--dim);font-size:14px}
+ h3{font-size:15px;margin:22px 0 6px;color:var(--orange-soft)}
+ .features{list-style:none;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+ .features li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}.features b{color:var(--orange-soft)}
+ .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:12px;margin-top:14px}
+ .face{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 6px 10px;text-align:center}
+ .face .pet-mono{font-size:30px;line-height:1.5;display:block;margin-bottom:8px}.face small{color:var(--dim);font-size:12px}
+ pre.code{background:#0e0c09;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:13.5px;color:#e7ded3}
+ .k{color:var(--orange-soft)}.s{color:var(--yellow)}.c{color:#7d7264}
+ code.inline{background:#0e0c09;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+ footer{text-align:center;color:var(--dim);margin-top:54px;font-size:14px}
+ #c60:checked ~ header .cyc-rel,#c80:checked ~ header .cyc-rel,#c100:checked ~ header .cyc-rel{display:none}
+ #c60:checked ~ header .cyc-foc,#c80:checked ~ header .cyc-foc,#c100:checked ~ header .cyc-foc{display:block}
+ #c0:checked ~ header .tab-rel,#c20:checked ~ header .tab-rel,#c40:checked ~ header .tab-rel,#c60:checked ~ header .tab-foc,#c80:checked ~ header .tab-foc,#c100:checked ~ header .tab-foc{background:var(--orange);color:#1a120c;font-weight:600}
+ #c0:checked ~ header .pip-0,#c20:checked ~ header .pip-20,#c40:checked ~ header .pip-40,#c60:checked ~ header .pip-60,#c80:checked ~ header .pip-80,#c100:checked ~ header .pip-100{background:var(--orange);color:#1a120c;font-weight:600}
+ #c0:checked ~ header .ctxbadge,#c20:checked ~ header .ctxbadge,#c40:checked ~ header .ctxbadge{color:#62c462}
+ #c60:checked ~ header .ctxbadge{color:#ffd778}
+ #c80:checked ~ header .ctxbadge,#c100:checked ~ header .ctxbadge{color:#eb2d46}
+ #c0:checked ~ header .ctxbadge::after{content:"ctx: 0%"}
+ #c20:checked ~ header .ctxbadge::after{content:"ctx: 20%"}
+ #c40:checked ~ header .ctxbadge::after{content:"ctx: 40%"}
+ #c60:checked ~ header .ctxbadge::after{content:"ctx: 60%"}
+ #c80:checked ~ header .ctxbadge::after{content:"ctx: 80%"}
+ #c100:checked ~ header .ctxbadge::after{content:"ctx: 100%"}
+ @media(max-width:620px){.features{grid-template-columns:1fr}h1{font-size:32px}#hero{font-size:56px}}
+</style></head><body>
+<div class="wrap">
+ <input type="radio" name="ctx" id="c0" class="ctxr"><input type="radio" name="ctx" id="c20" class="ctxr" checked><input type="radio" name="ctx" id="c40" class="ctxr"><input type="radio" name="ctx" id="c60" class="ctxr"><input type="radio" name="ctx" id="c80" class="ctxr"><input type="radio" name="ctx" id="c100" class="ctxr">
+ <header>
+   <div class="stage">
+     <div class="tabs">
+       <label for="c20" class="tab tab-rel">🙂 Relaxed</label>
+       <label for="c80" class="tab tab-foc">😩 Exhausted</label>
+     </div>
+     <div id="hero"><div class="cyc cyc-rel pet-mono"><div class="fr" style="animation-delay:-0s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-1s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-2s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-3s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ^ ^</span><span class="deco" style="color:#ffd778">✦</span></div><div class="fr" style="animation-delay:-4s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-5s"><span class="deco"> </span><span class="body" style="color:#0f0f0f">● ● </span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-6s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-7s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-8s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-9s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:#f06478">♥︎</span></div><div class="fr" style="animation-delay:-10s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-11s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></div></div><div class="cyc cyc-foc pet-mono"><div class="fr" style="animation-delay:-0s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-1s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-2s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:#78b4e6">°</span></div><div class="fr" style="animation-delay:-3s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-4s"><span class="deco"> </span><span class="body" style="color:#0f0f0f">◒ ◒ </span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-5s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-6s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-7s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-8s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-9s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></div><div class="fr" style="animation-delay:-10s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> . .</span><span class="deco" style="color:#ffd778">◗</span></div><div class="fr" style="animation-delay:-11s"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></div></div></div>
+     <div class="controls">
+       <span class="ctxbadge"></span>
+       <div class="ctxbar"><label for="c0" class="pip pip-0">0</label><label for="c20" class="pip pip-20">20</label><label for="c40" class="pip pip-40">40</label><label for="c60" class="pip pip-60">60</label><label for="c80" class="pip pip-80">80</label><label for="c100" class="pip pip-100">100</label></div>
+       <div class="hint">tap a % to set context — pet flips to Exhausted past 40%</div>
+     </div>
+   </div>
+   <h1><span class="paw">&#128062;</span> claude-pet</h1>
+   <p class="tag">A tiny animated Claude that lives in your statusline — and frets when context runs low.</p>
+ </header>
+ <h2>What is it?</h2>
+ <p>A single self-contained bash script that prints one 5-cell mascot frame each time Claude Code refreshes your statusline (~once a second). It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.</p>
+ <h2>Why it's nice</h2>
+ <ul class="features">
+   <li><b>Zero forks, zero temp files.</b> Pure bash builtins + <code class="inline">$RANDOM</code>.</li>
+   <li><b>Never loops.</b> Weighted-random frames feel alive, not metronomic.</li>
+   <li><b>Context-aware.</b> Relaxed (0–40%) vs exhausted (41%+) as a compact nudge.</li>
+   <li><b>No jitter.</b> Every frame is exactly 5 terminal cells.</li>
+   <li><b>One file.</b> Drop it in, point your statusline at it.</li>
+   <li><b>Mostly idle.</b> Rests, blinks, glances far more than it emotes.</li>
+ </ul>
+ <h2>Set 1 — Relaxed <span class="setnote">(0–40%: happy &amp; playful · emotes ~every 6s)</span></h2>
+ <div class="gallery"><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:transparent"> </span></span><small>idle</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></span><small>blink</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ^ ^</span><span class="deco" style="color:#ffd778">✦</span></span><small>happy</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ●</span><span class="deco" style="color:transparent"> </span></span><small>wink</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ▬</span><span class="deco" style="color:transparent"> </span></span><small>wink</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:#f06478">♥︎</span></span><small>heart</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ~ ~</span><span class="deco" style="color:#ffd778">✦</span></span><small>zen</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✱ ✱</span><span class="deco" style="color:#ffd778">✦</span></span><small>starry</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ● ●</span><span class="deco" style="color:#ffd778">?</span></span><small>curious</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◡ ◡</span><span class="deco" style="color:#ffd778">☼</span></span><small>sunny smile</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◉ ◉</span><span class="deco" style="color:#ffd778">✦</span></span><small>excited</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ^ ^</span><span class="deco" style="color:#ffd778">♪</span></span><small>giggle</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◠ ◠</span><span class="deco" style="color:transparent"> </span></span><small>content</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#eb2d46"> ♥︎ ♥︎</span><span class="deco" style="color:transparent"> </span></span><small>heart-eyes</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ^ ^</span><span class="deco" style="color:#ffd778">♫</span></span><small>humming</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#ffd778"> ★︎ ★︎</span><span class="deco" style="color:transparent"> </span></span><small>starstruck</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◉ ◉</span><span class="deco" style="color:#dc6e4b">❋</span></span><small>proud (logo)</small></div></div>
+ <h2>Set 2 — Exhausted <span class="setnote">(41%+: strained — emotes ~every 4.5s, the compact nudge)</span></h2>
+ <div class="gallery"><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></span><small>idle</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></span><small>blink</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> > <</span><span class="deco" style="color:transparent"> </span></span><small>strain</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> o o</span><span class="deco" style="color:#ffd778">!</span></span><small>surprised</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:#b4b4b4">z</span></span><small>sleepy</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:#78b4e6">°</span></span><small>sweat</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> • •</span><span class="deco" style="color:transparent"> </span></span><small>narrowed</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> o o</span><span class="deco" style="color:#78b4e6">°</span></span><small>panic</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:transparent"> </span></span><small>overload</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> > <</span><span class="deco" style="color:#78b4e6">°</span></span><small>strained</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▮ ▮</span><span class="deco" style="color:transparent"> </span></span><small>rigid</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> . .</span><span class="deco" style="color:#ffd778">◗</span></span><small>wistful</small></div></div>
+ <h2>Install — three ways</h2>
+
+ <h3>① One line (installer script)</h3>
+ <pre class="code"><span class="c"># grab claude-pet-install.sh, then:</span>
+bash claude-pet-install.sh</pre>
+ <p class="setnote">Drops the pet + wrapper into <code class="inline">~/.claude</code> and wires <code class="inline">settings.json</code> (with a backup). Idempotent. Needs <code class="inline">jq</code>.</p>
+
+ <h3>② Manual</h3>
+ <pre class="code"><span class="c"># make it runnable</span>
+chmod +x ~/.claude/scripts/claude-pet
+
+<span class="c"># add to ~/.claude/settings.json</span>
+{
+  <span class="k">"statusLine"</span>: {
+    <span class="k">"type"</span>: <span class="s">"command"</span>,
+    <span class="k">"command"</span>: <span class="s">"~/.claude/scripts/claude-pet --statusline"</span>,
+    <span class="k">"refreshInterval"</span>: <span class="s">1</span>
+  }
+}</pre>
+ <p class="setnote"><code class="inline">refreshInterval: 1</code> is what animates it — it re-runs the command every second.</p>
+
+ <h3>③ Just ask Claude</h3>
+ <p class="setnote">Paste this into a Claude Code session:</p>
+ <pre class="code">Set up ~/.claude/scripts/claude-pet as my statusline:
+chmod +x it, and add a "statusLine" to ~/.claude/settings.json
+of type "command" running "~/.claude/scripts/claude-pet
+--statusline" with "refreshInterval": 1.</pre>
+ <footer>Made with &#128062; for Claude Code statuslines.</footer>
+</div>
+</body></html>
