@@ -70,12 +70,14 @@ R=$'\033[0m'
 # space, eye) + a 1-cell deco slot (a glyph like ✦ ♡ ! z ° ?, or a
 # transparent space). Keeping the width fixed avoids layout jitter.
 
-# Idle, blink, glance. Idle + glance have a focused (mood 1) variant; blink is shared.
+# Idle, blink, glance. Each mood has its own idle/glance; blink is shared.
 IDLE="${SBG} ${SEY}● ●${SBG}${R} "                  # default pose (relaxed)
-IDLE_F="${SBG} ${SEY}◒ ◒${SBG}${R} "                # default pose (focused, half-shaded)
-BLINK="${SBG} ${SEY}▬ ▬${SBG}${R} "                 # eyes shut (bold bars)
+IDLE_F="${SBG} ${SEY}◒ ◒${SBG}${R} "                # default pose (exhausted, half-shaded)
+IDLE_P="${SBG} ${SEY}✖ ✖${SBG}${R} "                # default pose (panic, crossed-out)
+BLINK="${SBG} ${SEY}▬ ▬${SBG}${R} "                 # eyes shut (bold bars) — shared
 LOOK_L="${SBG}${SEY}● ●${SBG} ${R} "                # glance left (relaxed)
-LOOK_L_F="${SBG}${SEY}◒ ◒${SBG} ${R} "              # glance left (focused, half-shaded)
+LOOK_L_F="${SBG}${SEY}◒ ◒${SBG} ${R} "              # glance left (exhausted)
+LOOK_L_P="${SBG}${SEY}✖ ✖${SBG} ${R} "              # glance left (panic)
 
 # Relaxed pool (0–40%) — happy / playful.
 RELAXED_SPECIALS=(
@@ -96,7 +98,14 @@ RELAXED_SPECIALS=(
     "${SBG} ${SEY}◉ ◉${SBG}${R}${SOR}❋${R}"         # proud — Anthropic logo
 )
 
-# Focused pool (41%+) — strained / worried: your cue to compact.
+# Panic pool (70%+) — system overload: auto-compact is close.
+PANIC_SPECIALS=(
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}!${R}"          # alarm
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}@${R}"          # dizzy / overwhelmed
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}/${R}"          # swipe / "no"
+)
+
+# Focused pool (41–69%) — strained / worried: your cue to compact.
 FOCUSED_SPECIALS=(
     "${SBG} ${SEY}> <${SBG}${R} "                   # squint / strain
     "${SBG} ${SEY}o o${SBG}${R}${SSP}!${R}"         # surprised
@@ -124,18 +133,24 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
         esac
         shift
     done
-    [[ "$mood" =~ ^[01]$ ]] || mood=0
+    [[ "$mood" =~ ^[012]$ ]] || mood=0
 
     roll=$(( RANDOM % 100 ))
-    if [[ "$mood" == "1" ]]; then
-        # Focused: idle 44 / blink 20 / glance 14 / specials 22 (compact signal, ~4.5s)
+    if [[ "$mood" == "2" ]]; then
+        # Panic: idle 64 / glance 20 / specials 16 (70%+, no blink — dead stare)
+        if   (( roll < 64 )); then frame="$IDLE_P"
+        elif (( roll < 84 )); then frame="$LOOK_L_P"
+        else frame="${PANIC_SPECIALS[$(( RANDOM % ${#PANIC_SPECIALS[@]} ))]}"
+        fi
+    elif [[ "$mood" == "1" ]]; then
+        # Exhausted: idle 44 / blink 20 / glance 14 / specials 22 (41–69%, compact signal, ~4.5s)
         if   (( roll < 44 )); then frame="$IDLE_F"
         elif (( roll < 64 )); then frame="$BLINK"
         elif (( roll < 78 )); then frame="$LOOK_L_F"
         else frame="${FOCUSED_SPECIALS[$(( RANDOM % ${#FOCUSED_SPECIALS[@]} ))]}"
         fi
     else
-        # Relaxed: idle 50 / blink 20 / glance 14 / specials 16
+        # Relaxed: idle 50 / blink 20 / glance 14 / specials 16 (0–40%)
         if   (( roll < 50 )); then frame="$IDLE"
         elif (( roll < 70 )); then frame="$BLINK"
         elif (( roll < 84 )); then frame="$LOOK_L"
@@ -194,6 +209,7 @@ mood=0
 if [ -n "$used" ]; then
     used_int=$(printf '%.0f' "$used")
     [ "$used_int" -ge 41 ] && mood=1
+    [ "$used_int" -ge 70 ] && mood=2
 fi
 
 # Animated Claude mascot prefix. Pass the mood (from context usage) so the pet

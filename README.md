@@ -4,8 +4,7 @@
 
 ## What is it?
 
-A single self-contained Bash script that prints one **5-cell mascot frame** every time Claude Code refreshes your statusline (about once a second).
-It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.
+A self-contained Bash script that prints one **5-cell mascot frame** every time Claude Code refreshes your statusline (about once a second). It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.
 
 The animation isn't a fixed loop: each refresh picks a **weighted-random** frame, so the pet feels alive rather than metronomic.
 <p align="center">
@@ -20,20 +19,21 @@ The animation isn't a fixed loop: each refresh picks a **weighted-random** frame
 
 - **Zero forks, zero temp files.** Pure Bash builtins + `$RANDOM`.
 - **Never loops.** Weighted-random frames feel alive, not robotic.
-- **Context-aware.** Relaxed (0–40%) vs. exhausted (41%+) — a gentle nudge to `/compact`.
+- **Context-aware.** Three tiers — relaxed (0–40%), exhausted (41–69%), panic (70%+) — a building nudge to `/compact`.
 - **No jitter.** Every frame is exactly 5 terminal cells wide.
 - **One file.** Drop it in, point your statusline at it.
 - **Mostly idle.** It rests, blinks, and glances far more than it emotes.
 
 ## Expressions
 
-The pet has two moods, switched by context-window usage:
+The pet has three moods, switched by context-window usage:
 
 - 🙂 **Relaxed** (`0–40%`) — happy & playful. Emotes roughly every 6 seconds.
-- 😩 **Exhausted** (`41%+`) — strained. Emotes more often (~every 4.5 s) — your cue to compact.
+- 😩 **Exhausted** (`41–69%`) — strained. Emotes more often (~every 4.5 s) — your cue to compact.
+- 💀 **Panic** (`70%+`) — a dead-eyed `✖ ✖` stare (no more blinking). Auto-compact is closing in.
 
 > [!WARNING]
-> When the pet flips to 😩 **Exhausted** (41%+), that's your nudge to `/compact` before the window fills up.
+> Past **41%** the pet looks exhausted; past **70%** it flips to a panic `✖ ✖` stare — your signal to `/compact` before auto-compact kicks in around 95%.
 
 Here's the full cast:
 
