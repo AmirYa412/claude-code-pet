@@ -103,6 +103,7 @@ PANIC_SPECIALS=(
     "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}!${R}"          # alarm
     "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}@${R}"          # dizzy / overwhelmed
     "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}/${R}"          # swipe / "no"
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}X${R}"          # struck / error (red X)
 )
 
 # Focused pool (41–69%) — strained / worried: your cue to compact.
