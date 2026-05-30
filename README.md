@@ -1,6 +1,6 @@
 # 🐾 claude-pet
 
-> A tiny animated Claude that lives in your Claude Code statusline — and frets when your context window runs low.
+> A pixel-art Claude that lives in your statusline and tells you — through sheer existential dread — when it's time to `/compact`.
 
 ## What is it?
 
@@ -12,7 +12,9 @@ The animation isn't a fixed loop: each refresh picks a **weighted-random** frame
   <img src="./assets/claude-pet.gif" alt="claude-pet" width="720">
 </p>
 
-
+<h3 align="center">
+  <a href="https://amirya412.github.io/claude-code-pet/">▶ Try the interactive demo</a>
+</h3>
 
 ## Why it's nice
 
