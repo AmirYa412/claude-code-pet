@@ -47,60 +47,19 @@ Here's the full cast:
 ### Requirements
 
 - **[Claude Code CLI](https://docs.claude.com/en/docs/claude-code)** (`npm install -g @anthropic-ai/claude-code`)
-- **[`jq`](https://jqlang.github.io/jq/)** — required for the installer (①) and the context-aware wrapper; it parses the statusline JSON on every redraw. (Only optional if you wire the bare pet manually via ② / ③, which is pure Bash.) Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu).
+- **[`jq`](https://jqlang.github.io/jq/)** — **required**: the installer edits `settings.json` with it, and the statusline wrapper parses the context JSON on every redraw. Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu).
 - **Bash ≥ 3.2** — the pet and wrapper are Bash scripts (ships with macOS and Linux).
 - **A Modern Terminal** - For color support. 
 
-### ① One line — installer script
+### One command
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AmirYa412/claude-code-pet/main/claude-pet-install.sh | bash
 ```
 
-Or, if you've cloned the repo:
+Cloned the repo instead? Run `bash claude-pet-install.sh`.
 
-```bash
-bash claude-pet-install.sh
-```
-
-Drops the pet + a statusline wrapper into `~/.claude` and wires `settings.json` (with a timestamped backup). Idempotent. Needs [`jq`](https://jqlang.github.io/jq/).
-
-
-### ② Manual
-
-```bash
-# copy the pet into place and make it runnable
-mkdir -p ~/.claude/scripts
-cp claude-pet ~/.claude/scripts/
-chmod +x ~/.claude/scripts/claude-pet
-```
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/scripts/claude-pet --statusline",
-    "refreshInterval": 1
-  }
-}
-```
-
-> [!IMPORTANT]
-> `refreshInterval: 1` is what animates it — Claude Code re-runs the command every second.
-
-### ③ Just ask Claude
-
-Paste this into a Claude Code session:
-
-```
-Set up ~/.claude/scripts/claude-pet as my statusline:
-chmod +x it, and add a "statusLine" to ~/.claude/settings.json
-of type "command" running "~/.claude/scripts/claude-pet
---statusline" with "refreshInterval": 1.
-```
-
-> [!NOTE]
-> The context-aware mood switch (relaxed ↔ exhausted) is driven by a small statusline wrapper that the installer (①) sets up for you — it reads the current context % and passes it to the pet. Pointing your statusline straight at `claude-pet` (② / ③) still gives you the fully animated pet, in its relaxed mood.
+It drops the pet **and** the statusline wrapper into `~/.claude` and wires `settings.json` (`refreshInterval: 1`, which drives the ~1 fps animation) with a timestamped backup — so you get the full context-aware version out of the box: relaxed → exhausted → panic. Idempotent, safe to re-run.
 
 ---
 

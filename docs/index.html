@@ -92,37 +92,10 @@
  <div class="gallery"><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:transparent"> </span></span><small>idle</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:transparent"> </span></span><small>blink</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> > <</span><span class="deco" style="color:transparent"> </span></span><small>strain</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> o o</span><span class="deco" style="color:#ffd778">!</span></span><small>surprised</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▬ ▬</span><span class="deco" style="color:#b4b4b4">z</span></span><small>sleepy</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ◒ ◒</span><span class="deco" style="color:#78b4e6">°</span></span><small>sweat</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> • •</span><span class="deco" style="color:transparent"> </span></span><small>narrowed</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> o o</span><span class="deco" style="color:#78b4e6">°</span></span><small>panic</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:transparent"> </span></span><small>overload</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> > <</span><span class="deco" style="color:#78b4e6">°</span></span><small>strained</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ▮ ▮</span><span class="deco" style="color:transparent"> </span></span><small>rigid</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> . .</span><span class="deco" style="color:#ffd778">◗</span></span><small>wistful</small></div></div>
  <h2>Set 3 — Panic <span class="setnote">(70%+: dead-eyed — auto-compact incoming)</span></h2>
  <div class="gallery"><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:transparent"> </span></span><small>idle</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:#eb2d46">!</span></span><small>alarm</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:#eb2d46">@</span></span><small>dizzy</small></div><div class="face"><span class="pet-mono"><span class="deco"> </span><span class="body" style="color:#0f0f0f"> ✖︎ ✖︎</span><span class="deco" style="color:#eb2d46">/</span></span><small>swipe</small></div></div>
- <h2>Install — three ways</h2>
-
- <h3>① One line (installer script)</h3>
- <pre class="code">curl -fsSL https://raw.githubusercontent.com/AmirYa412/claude-code-pet/main/claude-pet-install.sh | bash
-
-<span class="c"># …or, if you've cloned the repo:</span>
-bash claude-pet-install.sh</pre>
- <p class="setnote">Drops the pet + wrapper into <code class="inline">~/.claude</code> and wires <code class="inline">settings.json</code> (with a backup). Idempotent. Needs <code class="inline">jq</code>.</p>
-
- <h3>② Manual</h3>
- <pre class="code"><span class="c"># copy the pet into place and make it runnable</span>
-mkdir -p ~/.claude/scripts
-cp claude-pet ~/.claude/scripts/
-chmod +x ~/.claude/scripts/claude-pet
-
-<span class="c"># add to ~/.claude/settings.json</span>
-{
-  <span class="k">"statusLine"</span>: {
-    <span class="k">"type"</span>: <span class="s">"command"</span>,
-    <span class="k">"command"</span>: <span class="s">"~/.claude/scripts/claude-pet --statusline"</span>,
-    <span class="k">"refreshInterval"</span>: <span class="s">1</span>
-  }
-}</pre>
- <p class="setnote"><code class="inline">refreshInterval: 1</code> is what animates it — it re-runs the command every second.</p>
-
- <h3>③ Just ask Claude</h3>
- <p class="setnote">Paste this into a Claude Code session:</p>
- <pre class="code">Set up ~/.claude/scripts/claude-pet as my statusline:
-chmod +x it, and add a "statusLine" to ~/.claude/settings.json
-of type "command" running "~/.claude/scripts/claude-pet
---statusline" with "refreshInterval": 1.</pre>
+ <h2>Install</h2>
+ <p class="setnote">One command — needs <a href="https://docs.claude.com/en/docs/claude-code">Claude Code</a> and <code class="inline">jq</code> (<code class="inline">brew install jq</code> / <code class="inline">sudo apt install jq</code>).</p>
+ <pre class="code">curl -fsSL https://raw.githubusercontent.com/AmirYa412/claude-code-pet/main/claude-pet-install.sh | bash</pre>
+ <p class="setnote">Cloned the repo instead? Run <code class="inline">bash claude-pet-install.sh</code>. It drops the pet + wrapper into <code class="inline">~/.claude</code> and wires <code class="inline">settings.json</code> (with a backup) — the full relaxed → exhausted → panic version. Idempotent.</p>
  <footer>Made with &#128062; for Claude Code statuslines.</footer>
 </div>
 </body></html>
