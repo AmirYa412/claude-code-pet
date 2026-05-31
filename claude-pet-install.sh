@@ -17,8 +17,9 @@ cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 #
 # Modeled after the pixel-art Claude on claude.ai: a chunky orange body with
 # two eyes that cycle through moods. The mascot reacts to context usage:
-#   --mood 0  Relaxed  (0–40% context): happy, playful expressions.
-#   --mood 1  Focused  (41%+ context):  strained/worried — your cue to compact.
+#   --mood 0  Relaxed    (0–40% context):  happy, playful expressions.
+#   --mood 1  Exhausted  (41–69% context): strained/worried — your cue to compact.
+#   --mood 2  Panic      (70%+ context):   dead-eyed ✖ ✖ stare — auto-compact is close.
 #
 # Each invocation prints ONE frame (exactly 5 terminal cells) chosen by
 # weighted random, then exits. No state files, no forks — pure bash builtins.
@@ -26,8 +27,8 @@ cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 # refreshInterval:1); the randomness keeps the motion from looping.
 #
 # Usage:
-#   claude-pet --statusline [--mood 0|1]   Print one frame and exit.
-#   claude-pet --help                      Show help.
+#   claude-pet --statusline [--mood 0|1|2]   Print one frame and exit.
+#   claude-pet --help                        Show help.
 #
 # Wire it into ~/.claude/settings.json:
 #   "statusLine": {
@@ -43,10 +44,10 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat <<'HELP'
 claude-pet — animated Claude mascot for your Claude Code statusline
 
-  claude-pet --statusline [--mood 0|1]   Prints one frame (5 cells) and exits.
-  claude-pet --help                      Show this help.
+  claude-pet --statusline [--mood 0|1|2]   Prints one frame (5 cells) and exits.
+  claude-pet --help                        Show this help.
 
---mood 0 (default) = relaxed/happy pool; --mood 1 = focused/worried pool.
+--mood 0 (default) = relaxed pool; 1 = exhausted (compact cue); 2 = panic (70%+).
 Each call picks a weighted-random frame, so the animation never loops.
 Stateless: no temp files, no forks. Wire it into your statusline (see the
 top of this file for settings.json).
@@ -106,8 +107,8 @@ PANIC_SPECIALS=(
     "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}X${R}"          # struck / error (red X)
 )
 
-# Focused pool (41–69%) — strained / worried: your cue to compact.
-FOCUSED_SPECIALS=(
+# Exhausted pool (41–69%) — strained / worried: your cue to compact.
+EXHAUSTED_SPECIALS=(
     "${SBG} ${SEY}> <${SBG}${R} "                   # squint / strain
     "${SBG} ${SEY}o o${SBG}${R}${SSP}!${R}"         # surprised
     "${SBG} ${SEY}▬ ▬${SBG}${R}${SZZ}z${R}"         # sleepy (bold bars)
@@ -148,7 +149,7 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
         if   (( roll < 44 )); then frame="$IDLE_F"
         elif (( roll < 64 )); then frame="$BLINK"
         elif (( roll < 78 )); then frame="$LOOK_L_F"
-        else frame="${FOCUSED_SPECIALS[$(( RANDOM % ${#FOCUSED_SPECIALS[@]} ))]}"
+        else frame="${EXHAUSTED_SPECIALS[$(( RANDOM % ${#EXHAUSTED_SPECIALS[@]} ))]}"
         fi
     else
         # Relaxed: idle 50 / blink 20 / glance 14 / specials 16 (0–40%)
