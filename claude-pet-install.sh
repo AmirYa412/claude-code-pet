@@ -10,6 +10,28 @@ set -euo pipefail
 CL="$HOME/.claude"; SC="$CL/scripts"
 mkdir -p "$SC"
 
+# --- installer output styling ----------------------------------------------
+# Colors only when stdout is a terminal (true under `curl | bash`). Empty
+# otherwise so piping to a file/log stays clean.
+if [ -t 1 ]; then
+    case "${COLORTERM:-}" in
+        *truecolor*|*24bit*)   # 24-bit: exact Claude orange
+            C_OR=$'\033[38;2;220;110;75m'
+            PET_BG=$'\033[48;2;220;110;75m'; PET_EYE=$'\033[38;2;15;15;15m' ;;
+        *)                     # 256-color fallback (e.g. macOS Terminal.app)
+            C_OR=$'\033[38;5;208m'
+            PET_BG=$'\033[48;5;208m'; PET_EYE=$'\033[38;5;232m' ;;
+    esac
+    C_GN=$'\033[32m'; C_YL=$'\033[33m'; C_DIM=$'\033[2m'; C_BD=$'\033[1m'; C_RS=$'\033[0m'
+else
+    C_OR=; C_GN=; C_YL=; C_DIM=; C_BD=; C_RS=; PET_BG=; PET_EYE=
+fi
+ok()   { printf '  %s✓%s %s\n' "$C_GN" "$C_RS" "$1"; }
+warn() { printf '  %s⚠%s %s\n' "$C_YL" "$C_RS" "$1"; }
+
+printf '\n  🐾 %s%sClaude Code Pet%s %s· Animated pet for your statusline%s\n\n' \
+    "$C_BD" "$C_OR" "$C_RS" "$C_DIM" "$C_RS"
+
 # --- 1. the pet (single self-contained mascot) --------------------------
 cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 #!/usr/bin/env bash
@@ -36,7 +58,7 @@ cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 #     "command": "~/.claude/scripts/claude-pet --statusline",
 #     "refreshInterval": 1
 #   }
-# (The bundled statusline-command.sh passes --mood based on context usage.)
+# (The bundled claude-pet-statusline.sh passes --mood based on context usage.)
 
 set -u
 
@@ -56,7 +78,10 @@ HELP
 fi
 
 # --- Palette ---------------------------------------------------------------
-SBG=$'\033[48;2;220;110;75m'    # body bg = Claude orange
+case "${COLORTERM:-}" in        # body bg = Claude orange (match installer preview)
+    *truecolor*|*24bit*) SBG=$'\033[48;2;220;110;75m' ;;
+    *)                   SBG=$'\033[48;5;208m' ;;     # 256-color fallback
+esac
 SOR=$'\033[38;2;220;110;75m'    # Claude orange (fg — Anthropic logo deco)
 SEY=$'\033[38;2;15;15;15m'      # eye fg = near-black
 SSP=$'\033[38;2;255;215;120m'   # sparkle yellow
@@ -173,8 +198,12 @@ chmod +x "$SC/claude-pet"
 # --- 2. statusline wrapper (pet + model + cwd + branch + ctx% + cache) ---
 cat > "$SC/claude-pet-statusline.sh" <<'CLAUDE_PET_WRAPPER_EOF'
 #!/usr/bin/env bash
-# Claude Code statusLine script
-# Displays: pet | model | cwd | git branch | context usage % | cache hit
+# Claude Code statusLine script.
+# Always renders the animated pet (mood from context %), then EITHER:
+#   - built-in line: pet | model | cwd | git branch | context % | cache, or
+#   - prepend mode:  pet + your own statusLine output — used when the installer
+#     saved your previous command to scripts/.claude-pet-host-command.
+# Either way the pet keeps all 3 moods, since mood is computed here.
 
 input=$(cat)
 
@@ -219,9 +248,34 @@ fi
 # weighted random, so it animates without any per-window state of its own.
 pet=$(~/.claude/scripts/claude-pet --statusline --mood "$mood" 2>/dev/null)
 
+# --- Prepend mode ----------------------------------------------------------
+# If the installer saved the user's previous statusLine command (they chose
+# "just add the pet"), render: pet + that command's output, pet in first
+# position. The original JSON is re-fed on stdin (it was consumed above).
+HOST_CMD_FILE="$HOME/.claude/scripts/.claude-pet-host-command"
+host_cmd=""
+[ -r "$HOST_CMD_FILE" ] && host_cmd=$(<"$HOST_CMD_FILE")
+
+# Fork-bomb guard: never run a host command that points back at this wrapper
+# (it would re-invoke us every render). Drop it and fall back to the built-in
+# line — makes self-reference structurally impossible regardless of detection.
+case "$host_cmd" in
+    *claude-pet-statusline.sh*) host_cmd="" ;;
+esac
+
+if [ -n "$host_cmd" ]; then
+    host_out=$(printf '%s' "$input" | sh -c "$host_cmd" 2>/dev/null)
+    if [ -n "$pet" ]; then
+        printf '%s %s\n' "$pet" "$host_out"
+    else
+        printf '%s\n' "$host_out"
+    fi
+    exit 0
+fi
+
+# --- Built-in line (complete mode) -----------------------------------------
 # ANSI color codes
 RESET='\033[0m'
-BOLD='\033[1m'
 DIM='\033[2m'
 CYAN='\033[36m'
 YELLOW='\033[33m'
@@ -325,26 +379,113 @@ echo -e "$result"
 CLAUDE_PET_WRAPPER_EOF
 chmod +x "$SC/claude-pet-statusline.sh"
 
-echo "  ✓ pet     -> $SC/claude-pet"
-echo "  ✓ wrapper -> $SC/claude-pet-statusline.sh"
+ok "pet     ${C_DIM}→ $SC/claude-pet${C_RS}"
+ok "wrapper ${C_DIM}→ $SC/claude-pet-statusline.sh${C_RS}"
+
+# Arrow-key dropdown for the "existing statusLine found" choice. Renders to
+# /dev/tty and reads raw keystrokes from it (works under `curl | bash`). Up/Down
+# (or k/j) move, Enter selects. Sets MENU_MODE to "complete" or "prepend".
+# Written for Bash 3.2 (macOS): integer read timeouts only, no `mapfile`, etc.
+menu_choice() {
+    local existing="$1" sel=0 key rest i first=1
+    local opts=("Replace it with the full pet line  (pet · model · dir · branch · ctx · cache)"
+                "Keep my statusline — just add the pet in front")
+    local n=${#opts[@]}
+    # Restore the cursor on any exit/interrupt while the menu is open.
+    trap 'printf "\033[?25h" > /dev/tty 2>/dev/null' EXIT INT TERM
+    {
+        printf '\n  %s%sAn existing statusLine was found:%s\n      %s%s%s\n\n' \
+            "$C_BD" "$C_OR" "$C_RS" "$C_DIM" "$existing" "$C_RS"
+        printf '  %sUse ↑/↓ then Enter:%s\n\n' "$C_DIM" "$C_RS"
+        printf '\033[?25l'   # hide cursor
+    } > /dev/tty
+    while true; do
+        [ "$first" -eq 0 ] && printf '\033[%dA' "$n" > /dev/tty   # cursor up n lines to redraw
+        first=0
+        for i in "${!opts[@]}"; do
+            if [ "$i" -eq "$sel" ]; then
+                printf '\033[K  %s%s ▸ %s %s\n' "$PET_BG" "$PET_EYE" "${opts[$i]}" "$C_RS" > /dev/tty   # selected: orange bg
+            else
+                printf '\033[K    %s%s%s\n' "$C_DIM" "${opts[$i]}" "$C_RS" > /dev/tty
+            fi
+        done
+        IFS= read -rsn1 key < /dev/tty || true
+        if [ "$key" = $'\033' ]; then
+            IFS= read -rsn2 -t 1 rest < /dev/tty || true   # arrow tail: "[A"/"[B"
+            key+="$rest"
+        fi
+        case "$key" in
+            $'\033[A'|k) sel=$(( (sel - 1 + n) % n )) ;;
+            $'\033[B'|j) sel=$(( (sel + 1) % n )) ;;
+            ''|$'\n'|$'\r') break ;;   # Enter
+        esac
+    done
+    printf '\033[?25h' > /dev/tty   # show cursor
+    trap - EXIT INT TERM
+    [ "$sel" -eq 1 ] && MENU_MODE="prepend" || MENU_MODE="complete"
+}
 
 # --- 3. wire into settings.json (backup first) --------------------------
+# If a foreign statusLine already exists (or the pet is already prepending to
+# one), offer a dropdown: replace it with the full pet line, or keep it and
+# prepend the pet. Re-running lets you switch between the two.
 SETTINGS="$CL/settings.json"
 CMD="bash ~/.claude/scripts/claude-pet-statusline.sh"
+HOST_CMD_FILE="$SC/.claude-pet-host-command"
 if command -v jq >/dev/null 2>&1; then
   if [ -f "$SETTINGS" ]; then cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d%H%M%S)"; else echo '{}' > "$SETTINGS"; fi
+
+  # Existing statusLine command, normalized (expand a leading ~, trim) so the
+  # "is this already ours?" check is robust against ~ vs $HOME and whitespace.
+  existing=$(jq -r '.statusLine.command // empty' "$SETTINGS" 2>/dev/null)
+  norm_existing="${existing/#\~/$HOME}"
+  norm_existing="${norm_existing#"${norm_existing%%[![:space:]]*}"}"
+
+  # Work out the foreign statusLine we'd prepend to ($host_line) and whether to
+  # offer the choice. When re-running over our own wrapper in prepend mode, the
+  # user's real line lives in the host-command file — surface it so they can
+  # switch to the full pet line (or stay) without uninstalling first.
+  mode="complete"
+  host_line=""
+  offer=0
+  if [ -n "$existing" ] && [[ "$norm_existing" == *claude-pet-statusline.sh* ]]; then
+    if [ -s "$HOST_CMD_FILE" ]; then
+      host_line=$(cat "$HOST_CMD_FILE")
+      case "$host_line" in *claude-pet-statusline.sh*) host_line="" ;; esac   # never prepend to ourselves
+    fi
+    [ -n "$host_line" ] && offer=1     # currently prepending -> re-offer; else stay full
+  elif [ -n "$existing" ]; then
+    host_line="$existing"; offer=1     # foreign statusLine -> offer replace vs prepend
+  fi
+
+  if [ "$offer" -eq 1 ]; then
+    if [ -r /dev/tty ]; then
+      menu_choice "$host_line"     # sets MENU_MODE to complete|prepend
+      mode="$MENU_MODE"
+    else
+      mode="prepend"   # non-interactive with a line present: don't clobber it
+    fi
+  fi
+
+  case "$mode" in
+    prepend) printf '%s' "$host_line" > "$HOST_CMD_FILE"
+             ok "existing statusLine kept — pet prepended in first position" ;;
+    complete) rm -f "$HOST_CMD_FILE" ;;     # full pet line
+  esac
+
   tmp="$(mktemp)"
   jq --arg cmd "$CMD" '.statusLine={type:"command",command:$cmd,refreshInterval:1}' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
-  echo "  ✓ statusLine wired in $SETTINGS (backup kept)"
+  ok "statusLine wired ${C_DIM}→ $SETTINGS${C_RS} (backup kept)"
 else
-  echo "  ⚠ jq not found — add this to $SETTINGS manually:"
-  echo "      \"statusLine\": { \"type\": \"command\", \"command\": \"$CMD\", \"refreshInterval\": 1 }"
-  echo "    (jq is also needed at runtime for context-aware mood — install via brew/apt.)"
+  warn "jq not found — add this to $SETTINGS manually:"
+  printf '      %s"statusLine": { "type": "command", "command": "%s", "refreshInterval": 1 }%s\n' "$C_DIM" "$CMD" "$C_RS"
+  printf '    %s(jq is also needed at runtime for context-aware mood — install via brew/apt.)%s\n' "$C_DIM" "$C_RS"
 fi
 
 # --- 4. preview ----------------------------------------------------------
-printf '\n  preview  '; "$SC/claude-pet" --statusline --mood 0 2>/dev/null || true; printf '  relaxed\n'
-printf '\n  preview  '; "$SC/claude-pet" --statusline --mood 1 2>/dev/null || true; printf '  exhausted\n'
-printf '\n  preview  '; "$SC/claude-pet" --statusline --mood 2 2>/dev/null || true; printf '  panic\n'
-echo
-echo "Done 🐾  Start a new Claude Code session (or wait for the next redraw)."
+# One pet, rendered exactly as it appears in the statusline (relaxed idle
+# frame in the Claude-orange body) — no mood gallery.
+preview_pet="${PET_BG} ${PET_EYE}● ●${PET_BG}${C_RS} "
+printf '\n  %syour pet%s   %s\n\n' "$C_DIM" "$C_RS" "$preview_pet"
+printf '  %s%sDone%s %s🐾%s  Start a new Claude Code session (or wait for the next redraw).\n\n' \
+    "$C_BD" "$C_GN" "$C_RS" "$C_OR" "$C_RS"
