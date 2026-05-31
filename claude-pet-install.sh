@@ -229,8 +229,27 @@ RED='\033[31m'
 BLUE='\033[34m'
 SEP="${DIM} | ${RESET}"
 
-# Shorten home directory to ~
-cwd="${cwd/#$HOME/~}"
+# Build the display path. Collapse git-worktree paths
+# (<repo>/.claude/worktrees/<name>/<subpath>) into "🌲  <repo>/<subpath>" — the
+# branch field already shows the worktree name, so the long middle is just
+# noise. Everything else gets the usual home-dir -> ~ shortening. Keep the raw
+# absolute $cwd untouched: get_branch below walks it to find .git.
+case "$cwd" in
+    */.claude/worktrees/*)
+        repo_root="${cwd%%/.claude/worktrees/*}"   # .../cloud-automation
+        repo_name="${repo_root##*/}"               # cloud-automation
+        rest="${cwd#*/.claude/worktrees/}"         # RED-xxx/e2e-automation/sm-ui-refresh
+        subpath="${rest#*/}"                       # e2e-automation/sm-ui-refresh (or rest if at root)
+        if [ "$subpath" = "$rest" ]; then
+            cwd_display="🌲  ${repo_name}"         # worktree root, no subpath
+        else
+            cwd_display="🌲  ${repo_name}/${subpath}"
+        fi
+        ;;
+    *)
+        cwd_display="${cwd/#$HOME/~}"
+        ;;
+esac
 
 # Resolve the git branch without spawning git. Walk up from the dir to the
 # .git entry, then read HEAD: a branch ref ("ref: refs/heads/x") or, when
@@ -256,7 +275,7 @@ get_branch() {
         ?*)                  branch="${head:0:7}" ;;   # detached HEAD -> short SHA
     esac
 }
-get_branch "${cwd/#~/$HOME}"
+get_branch "$cwd"
 
 # Context usage color: green < 50%, yellow < 80%, red >= 80%
 ctx_color="$GREEN"
@@ -281,9 +300,9 @@ if [ -n "$model" ]; then
 fi
 
 if [ -n "$result" ]; then
-    result="${result}${SEP}${CYAN}${cwd}${RESET}"
+    result="${result}${SEP}${CYAN}${cwd_display}${RESET}"
 else
-    result="${CYAN}${cwd}${RESET}"
+    result="${CYAN}${cwd_display}${RESET}"
 fi
 
 if [ -n "$branch" ]; then
