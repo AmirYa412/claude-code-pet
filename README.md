@@ -1,4 +1,4 @@
-# 🐾 claude-pet
+# 🐾 Claude Code CLI Pet
 
 > A pixel-art Claude that lives in your statusline and tells you — through sheer existential dread — when it's time to `/compact`.
 
