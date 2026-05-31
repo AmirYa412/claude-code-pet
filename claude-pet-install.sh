@@ -324,6 +324,7 @@ fi
 
 # --- 4. preview ----------------------------------------------------------
 printf '\n  preview  '; "$SC/claude-pet" --statusline --mood 0 2>/dev/null || true; printf '  relaxed\n'
-printf '  preview  '; "$SC/claude-pet" --statusline --mood 1 2>/dev/null || true; printf '  exhausted\n'
+printf '\n  preview  '; "$SC/claude-pet" --statusline --mood 1 2>/dev/null || true; printf '  exhausted\n'
+printf '\n  preview  '; "$SC/claude-pet" --statusline --mood 2 2>/dev/null || true; printf '  panic\n'
 echo
 echo "Done 🐾  Start a new Claude Code session (or wait for the next redraw)."
