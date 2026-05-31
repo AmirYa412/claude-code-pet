@@ -173,8 +173,12 @@ chmod +x "$SC/claude-pet"
 # --- 2. statusline wrapper (pet + model + cwd + branch + ctx% + cache) ---
 cat > "$SC/claude-pet-statusline.sh" <<'CLAUDE_PET_WRAPPER_EOF'
 #!/usr/bin/env bash
-# Claude Code statusLine script
-# Displays: pet | model | cwd | git branch | context usage % | cache hit
+# Claude Code statusLine script.
+# Always renders the animated pet (mood from context %), then EITHER:
+#   - built-in line: pet | model | cwd | git branch | context % | cache, or
+#   - prepend mode:  pet + your own statusLine output — used when the installer
+#     saved your previous command to scripts/.claude-pet-host-command.
+# Either way the pet keeps all 3 moods, since mood is computed here.
 
 input=$(cat)
 
@@ -219,6 +223,32 @@ fi
 # weighted random, so it animates without any per-window state of its own.
 pet=$(~/.claude/scripts/claude-pet --statusline --mood "$mood" 2>/dev/null)
 
+# --- Prepend mode ----------------------------------------------------------
+# If the installer saved the user's previous statusLine command (they chose
+# "just add the pet"), render: pet + that command's output, pet in first
+# position. The original JSON is re-fed on stdin (it was consumed above).
+HOST_CMD_FILE="$HOME/.claude/scripts/.claude-pet-host-command"
+host_cmd=""
+[ -r "$HOST_CMD_FILE" ] && host_cmd=$(<"$HOST_CMD_FILE")
+
+# Fork-bomb guard: never run a host command that points back at this wrapper
+# (it would re-invoke us every render). Drop it and fall back to the built-in
+# line — makes self-reference structurally impossible regardless of detection.
+case "$host_cmd" in
+    *claude-pet-statusline.sh*) host_cmd="" ;;
+esac
+
+if [ -n "$host_cmd" ]; then
+    host_out=$(printf '%s' "$input" | sh -c "$host_cmd" 2>/dev/null)
+    if [ -n "$pet" ]; then
+        printf '%s %s\n' "$pet" "$host_out"
+    else
+        printf '%s\n' "$host_out"
+    fi
+    exit 0
+fi
+
+# --- Built-in line (complete mode) -----------------------------------------
 # ANSI color codes
 RESET='\033[0m'
 BOLD='\033[1m'
@@ -329,10 +359,44 @@ echo "  ✓ pet     -> $SC/claude-pet"
 echo "  ✓ wrapper -> $SC/claude-pet-statusline.sh"
 
 # --- 3. wire into settings.json (backup first) --------------------------
+# If a foreign statusLine already exists, ask whether to replace it with the
+# complete pet line, or keep it and just prepend the pet (3 moods either way).
 SETTINGS="$CL/settings.json"
 CMD="bash ~/.claude/scripts/claude-pet-statusline.sh"
+HOST_CMD_FILE="$SC/.claude-pet-host-command"
 if command -v jq >/dev/null 2>&1; then
   if [ -f "$SETTINGS" ]; then cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d%H%M%S)"; else echo '{}' > "$SETTINGS"; fi
+
+  # Existing statusLine command, normalized (expand a leading ~, trim) so the
+  # "is this already ours?" check is robust against ~ vs $HOME and whitespace.
+  existing=$(jq -r '.statusLine.command // empty' "$SETTINGS" 2>/dev/null)
+  norm_existing="${existing/#\~/$HOME}"
+  norm_existing="${norm_existing#"${norm_existing%%[![:space:]]*}"}"
+
+  mode="complete"
+  if [ -n "$existing" ] && [[ "$norm_existing" == *claude-pet-statusline.sh* ]]; then
+    mode="keep"        # re-run of our own wrapper: preserve the prior choice
+  elif [ -n "$existing" ]; then
+    if [ -r /dev/tty ]; then
+      {
+        printf '\n  An existing statusLine was found:\n      %s\n\n' "$existing"
+        printf '  Install the COMPLETE pet statusline (pet · model · dir · branch · ctx · cache)?\n'
+        printf '  [Y/n]  (n = keep your line, just add the pet in front — still 3 moods): '
+      } > /dev/tty
+      read -r ans < /dev/tty || ans=""
+      case "$ans" in [Nn]*) mode="prepend" ;; *) mode="complete" ;; esac
+    else
+      mode="prepend"   # non-interactive with a foreign line: don't clobber it
+    fi
+  fi
+
+  case "$mode" in
+    prepend) printf '%s' "$existing" > "$HOST_CMD_FILE"
+             echo "  ✓ pet will prepend to your existing statusLine" ;;
+    complete) rm -f "$HOST_CMD_FILE" ;;     # built-in mode
+    keep)    [ -s "$HOST_CMD_FILE" ] && echo "  ✓ kept prepend mode" || echo "  ✓ kept complete mode" ;;
+  esac
+
   tmp="$(mktemp)"
   jq --arg cmd "$CMD" '.statusLine={type:"command",command:$cmd,refreshInterval:1}' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
   echo "  ✓ statusLine wired in $SETTINGS (backup kept)"
