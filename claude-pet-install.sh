@@ -274,14 +274,17 @@ if [ -n "$host_cmd" ]; then
 fi
 
 # --- Built-in line (complete mode) -----------------------------------------
-# ANSI color codes
+# Truecolor (24-bit) codes. Using explicit RGB instead of 16-color slots
+# (\033[36m etc.) keeps colors vivid regardless of the terminal theme — Warp
+# and similar terminals map the 16 ANSI slots to a muted palette, which made
+# these look washed out compared to macOS Terminal.
 RESET='\033[0m'
 DIM='\033[2m'
-CYAN='\033[36m'
-YELLOW='\033[33m'
-GREEN='\033[32m'
-RED='\033[31m'
-BLUE='\033[34m'
+CYAN='\033[38;2;38;215;225m'
+YELLOW='\033[38;2;255;200;60m'
+GREEN='\033[38;2;80;220;100m'
+RED='\033[38;2;255;85;85m'
+BLUE='\033[38;2;90;160;255m'
 SEP="${DIM} | ${RESET}"
 
 # Build the display path. Collapse git-worktree paths
