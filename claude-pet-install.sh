@@ -44,21 +44,34 @@ cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 #   --mood 2  Panic      (70%+ context):   dead-eyed ✖ ✖ stare — auto-compact is close.
 #
 # Each invocation prints ONE frame (exactly 5 terminal cells) chosen by
-# weighted random, then exits. No state files, no forks — pure bash builtins.
-# The animation comes from Claude Code re-invoking the command (~1 fps with
-# refreshInterval:1); the randomness keeps the motion from looping.
+# weighted random, then exits. The roll for a given second comes from an
+# integer hash of (second, --seed) — never from re-seeding $RANDOM, whose
+# LCG turns consecutive seeds into a marching pattern. Hashed rolls buy
+# three things with zero state files:
+#   - redraws within the same second repaint the same frame (no twitching
+#     while Claude Code streams and redraws faster than 1s),
+#   - any second's roll can be recomputed, so a blink plays as a DOUBLE
+#     blink — ▬ ▬ · open · ▬ ▬ across three seconds — and emotes get a
+#     cooldown (never back-to-back), and
+#   - gaze is a slow second layer: every 7s window the eyes settle left or
+#     right (equal uptime) and the pet idles AND blinks in that pose, so
+#     gazing aside is a resting position rather than a one-second flash.
+#
+# No state files, no forks — pure bash builtins (one `date` fork only if
+# --now is omitted on bash < 4.2). The animation comes from Claude Code
+# re-invoking the command (~1 fps with refreshInterval:1); the randomness
+# keeps the motion from looping.
 #
 # Usage:
-#   claude-pet --statusline [--mood 0|1|2]   Print one frame and exit.
-#   claude-pet --help                        Show help.
+#   claude-pet --statusline [--mood 0|1|2] [--now EPOCH] [--seed N]
+#   claude-pet --help
 #
-# Wire it into ~/.claude/settings.json:
+# Wire it into ~/.claude/settings.json (the bundled wrapper passes the flags):
 #   "statusLine": {
 #     "type": "command",
-#     "command": "~/.claude/scripts/claude-pet --statusline",
+#     "command": "bash ~/.claude/scripts/claude-pet-statusline.sh",
 #     "refreshInterval": 1
 #   }
-# (The bundled claude-pet-statusline.sh passes --mood based on context usage.)
 
 set -u
 
@@ -66,29 +79,49 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat <<'HELP'
 claude-pet — animated Claude mascot for your Claude Code statusline
 
-  claude-pet --statusline [--mood 0|1|2]   Prints one frame (5 cells) and exits.
-  claude-pet --help                        Show this help.
+  claude-pet --statusline [options]   Prints one frame (5 cells) and exits.
+  claude-pet --help                   Show this help.
 
---mood 0 (default) = relaxed pool; 1 = exhausted (compact cue); 2 = panic (70%+).
-Each call picks a weighted-random frame, so the animation never loops.
-Stateless: no temp files, no forks. Wire it into your statusline (see the
-top of this file for settings.json).
+Options (supplied by the bundled statusline wrapper):
+  --mood 0|1|2   0 relaxed (default) · 1 exhausted (compact cue) · 2 panic (70%+)
+  --now EPOCH    unix time driving the animation (default: now)
+  --seed N       per-session salt so parallel sessions don't animate in sync
+
+Each call picks a weighted-random frame per second, so the animation never
+loops. Blinks play as double blinks (blink · open · blink), emotes never
+appear back-to-back, and the gaze settles left or right (50/50) for ~7s
+stretches (the pet idles and blinks in that pose). Stateless: no temp
+files, no forks.
 HELP
     exit 0
 fi
 
 # --- Palette ---------------------------------------------------------------
-case "${COLORTERM:-}" in        # body bg = Claude orange (match installer preview)
-    *truecolor*|*24bit*) SBG=$'\033[48;2;220;110;75m' ;;
-    *)                   SBG=$'\033[48;5;208m' ;;     # 256-color fallback
+# Truecolor when the terminal advertises it (Warp, iTerm2, ...), 256-color
+# fallback otherwise (e.g. stock macOS Terminal.app) — for EVERY color, not
+# just the body, so eyes/decos never render as garbage on older terminals.
+case "${COLORTERM:-}" in
+    *truecolor*|*24bit*)
+        SBG=$'\033[48;2;220;110;75m'    # body bg = Claude orange
+        SOR=$'\033[38;2;220;110;75m'    # Claude orange fg (Anthropic logo deco)
+        SEY=$'\033[38;2;15;15;15m'      # eye fg = near-black
+        SSP=$'\033[38;2;255;215;120m'   # sparkle yellow
+        SHT=$'\033[38;2;240;100;120m'   # heart pink
+        SRD=$'\033[38;2;235;45;70m'     # heart red (heart-eyes) / alarm decos
+        SZZ=$'\033[38;2;180;180;180m'   # zzz grey
+        SWT=$'\033[38;2;120;180;230m'   # sweat pale-blue
+        ;;
+    *)
+        SBG=$'\033[48;5;208m'
+        SOR=$'\033[38;5;208m'
+        SEY=$'\033[38;5;232m'
+        SSP=$'\033[38;5;221m'
+        SHT=$'\033[38;5;211m'
+        SRD=$'\033[38;5;197m'
+        SZZ=$'\033[38;5;250m'
+        SWT=$'\033[38;5;110m'
+        ;;
 esac
-SOR=$'\033[38;2;220;110;75m'    # Claude orange (fg — Anthropic logo deco)
-SEY=$'\033[38;2;15;15;15m'      # eye fg = near-black
-SSP=$'\033[38;2;255;215;120m'   # sparkle yellow
-SHT=$'\033[38;2;240;100;120m'   # heart pink
-SRD=$'\033[38;2;235;45;70m'     # heart red (heart-eyes)
-SZZ=$'\033[38;2;180;180;180m'   # zzz grey
-SWT=$'\033[38;2;120;180;230m'   # sweat pale-blue
 R=$'\033[0m'
 
 # --- Frames ----------------------------------------------------------------
@@ -101,9 +134,10 @@ IDLE="${SBG} ${SEY}● ●${SBG}${R} "                  # default pose (relaxed)
 IDLE_F="${SBG} ${SEY}◒ ◒${SBG}${R} "                # default pose (exhausted, half-shaded)
 IDLE_P="${SBG} ${SEY}✖ ✖${SBG}${R} "                # default pose (panic, crossed-out)
 BLINK="${SBG} ${SEY}▬ ▬${SBG}${R} "                 # eyes shut (bold bars) — shared
-LOOK_L="${SBG}${SEY}● ●${SBG} ${R} "                # glance left (relaxed)
-LOOK_L_F="${SBG}${SEY}◒ ◒${SBG} ${R} "              # glance left (exhausted)
-LOOK_L_P="${SBG}${SEY}✖ ✖${SBG} ${R} "              # glance left (panic)
+BLINK_L="${SBG}${SEY}▬ ▬${SBG} ${R} "               # eyes shut while gazing left
+LOOK_L="${SBG}${SEY}● ●${SBG} ${R} "                # gaze left (relaxed)
+LOOK_L_F="${SBG}${SEY}◒ ◒${SBG} ${R} "              # gaze left (exhausted)
+LOOK_L_P="${SBG}${SEY}✖ ✖${SBG} ${R} "              # gaze left (panic)
 
 # Relaxed pool (0–40%) — happy / playful.
 RELAXED_SPECIALS=(
@@ -124,14 +158,6 @@ RELAXED_SPECIALS=(
     "${SBG} ${SEY}◉ ◉${SBG}${R}${SOR}❋${R}"         # proud — Anthropic logo
 )
 
-# Panic pool (70%+) — system overload: auto-compact is close.
-PANIC_SPECIALS=(
-    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}!${R}"          # alarm
-    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}@${R}"          # dizzy / overwhelmed
-    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}/${R}"          # swipe / "no"
-    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}X${R}"          # struck / error (red X)
-)
-
 # Exhausted pool (41–69%) — strained / worried: your cue to compact.
 EXHAUSTED_SPECIALS=(
     "${SBG} ${SEY}> <${SBG}${R} "                   # squint / strain
@@ -146,43 +172,119 @@ EXHAUSTED_SPECIALS=(
     "${SBG} ${SEY}. .${SBG}${R}${SSP}◗${R}"         # tiny / wistful + filled moon
 )
 
+# Panic pool (70%+) — system overload: auto-compact is close.
+PANIC_SPECIALS=(
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}!${R}"          # alarm
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}@${R}"          # dizzy / overwhelmed
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}/${R}"          # swipe / "no"
+    "${SBG} ${SEY}✖ ✖${SBG}${R}${SRD}X${R}"          # struck / error (red X)
+)
+
 # --- Statusline mode -------------------------------------------------------
-# Pick one weighted-random frame for the given mood and print it. Weights
-# favour idle/blink/glance so the pet mostly "lives" and only occasionally
-# emotes. $RANDOM is a builtin — no fork, no file I/O.
 if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
     shift
-    mood=0
+    mood=0 now='' seed=0
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --mood=*) mood="${1#--mood=}" ;;
+            --mood=*) mood="${1#*=}" ;;
             --mood)   mood="${2:-0}"; shift ;;
+            --now=*)  now="${1#*=}" ;;
+            --now)    now="${2:-}"; shift ;;
+            --seed=*) seed="${1#*=}" ;;
+            --seed)   seed="${2:-0}"; shift ;;
         esac
         shift
     done
     [[ "$mood" =~ ^[012]$ ]] || mood=0
+    [[ "$seed" =~ ^[0-9]+$ ]] || seed=0
+    if [[ ! "$now" =~ ^[0-9]+$ ]]; then
+        # %(...)T is a printf builtin on bash >= 4.2; older bash forks date once.
+        printf -v now '%(%s)T' -1 2>/dev/null || now=''
+        [[ "$now" =~ ^[0-9]+$ ]] || now=$(date +%s)
+    fi
 
-    roll=$(( RANDOM % 100 ))
-    if [[ "$mood" == "2" ]]; then
-        # Panic: idle 64 / glance 20 / specials 16 (70%+, no blink — dead stare)
-        if   (( roll < 64 )); then frame="$IDLE_P"
-        elif (( roll < 84 )); then frame="$LOOK_L_P"
-        else frame="${PANIC_SPECIALS[$(( RANDOM % ${#PANIC_SPECIALS[@]} ))]}"
-        fi
-    elif [[ "$mood" == "1" ]]; then
-        # Exhausted: idle 44 / blink 20 / glance 14 / specials 22 (41–69%, compact signal, ~4.5s)
-        if   (( roll < 44 )); then frame="$IDLE_F"
-        elif (( roll < 64 )); then frame="$BLINK"
-        elif (( roll < 78 )); then frame="$LOOK_L_F"
-        else frame="${EXHAUSTED_SPECIALS[$(( RANDOM % ${#EXHAUSTED_SPECIALS[@]} ))]}"
-        fi
+    # hash_at: xorshift-multiply finalizer of ($1, seed) — well-mixed, unlike
+    # re-seeding $RANDOM, whose LCG turns consecutive seeds into a marching
+    # pattern. Deterministic, so any second can be recomputed at will.
+    hash_at() {  # $1 = integer -> H (31-bit hash)
+        local h=$(( ($1 + seed * 7919) & 4294967295 ))
+        h=$(( ((h ^ (h >> 15)) * 2654435761) & 4294967295 ))
+        h=$(( ((h ^ (h >> 13)) * 2246822519) & 4294967295 ))
+        H=$(( h ^ (h >> 16) ))
+    }
+
+    # --- Gaze: where the eyes rest -------------------------------------------
+    # Gazing is an idle POSE, not a one-second flash. A 4-cell body only fits
+    # two eye placements — cells 2+4 (leaning right, the classic pose) and
+    # cells 1+3 (leaning left) — so every 7s window the pet settles on one of
+    # them with EQUAL uptime and idles AND blinks in that pose. The offset
+    # decorrelates gaze from the per-second picks below.
+    case "$mood" in
+        2) IDLE_C="$IDLE_P"; IDLE_L="$LOOK_L_P" ;;
+        1) IDLE_C="$IDLE_F"; IDLE_L="$LOOK_L_F" ;;
+        *) IDLE_C="$IDLE";   IDLE_L="$LOOK_L" ;;
+    esac
+    hash_at $(( now / 7 + 999999937 ))
+    if (( H % 100 < 50 )); then
+        POSE_IDLE="$IDLE_L"; POSE_BLINK="$BLINK_L"
     else
-        # Relaxed: idle 50 / blink 20 / glance 14 / specials 16 (0–40%)
-        if   (( roll < 50 )); then frame="$IDLE"
-        elif (( roll < 70 )); then frame="$BLINK"
-        elif (( roll < 84 )); then frame="$LOOK_L"
-        else frame="${RELAXED_SPECIALS[$(( RANDOM % ${#RELAXED_SPECIALS[@]} ))]}"
+        POSE_IDLE="$IDLE_C"; POSE_BLINK="$BLINK"
+    fi
+
+    # --- Per-second action: idle / double blink / special --------------------
+    # Weights favour idle so the pet mostly "lives" and only occasionally
+    # emotes. The same second always rolls the same action (steady redraws),
+    # and the previous seconds can be recomputed, which drives two rules:
+    #   - a blink plays as a DOUBLE blink: T ▬ ▬ · T+1 open · T+2 ▬ ▬, and
+    #     only starts when the two seconds before it didn't roll blink, so
+    #     blinks never chain into flicker;
+    #   - a special only plays when the two seconds before it didn't roll
+    #     special — emotes can never appear back-to-back.
+    pick() {  # $1 = epoch second -> KIND (idle|blink|special) + SPEC
+        hash_at "$1"
+        local roll=$(( H % 100 )) idx=$(( H / 100 ))
+        KIND=idle SPEC=''
+        if [[ "$mood" == "2" ]]; then
+            # Panic: idle 88 / specials 12 (no blink — dead stare)
+            if (( roll >= 88 )); then
+                KIND=special; SPEC="${PANIC_SPECIALS[$(( idx % ${#PANIC_SPECIALS[@]} ))]}"
+            fi
+        elif [[ "$mood" == "1" ]]; then
+            # Exhausted: idle 64 / blink 14 / specials 22 (the compact cue
+            # emotes more — ~every 9s after the cooldown)
+            if   (( roll < 64 )); then KIND=idle
+            elif (( roll < 78 )); then KIND=blink
+            else KIND=special; SPEC="${EXHAUSTED_SPECIALS[$(( idx % ${#EXHAUSTED_SPECIALS[@]} ))]}"
+            fi
+        else
+            # Relaxed: idle 72 / blink 14 / specials 14 (~one emote / 12s
+            # after the cooldown — calmer than the old every-6s flash)
+            if   (( roll < 72 )); then KIND=idle
+            elif (( roll < 86 )); then KIND=blink
+            else KIND=special; SPEC="${RELAXED_SPECIALS[$(( idx % ${#RELAXED_SPECIALS[@]} ))]}"
+            fi
         fi
+    }
+    # A blink roll only starts a pair when the THREE seconds before it didn't
+    # roll blink — that spaces initiations ≥4s apart, so two pairs can never
+    # touch on screen (no ▬·open·▬▬·open·▬ runs).
+    pick $(( now - 5 )); k5="$KIND"
+    pick $(( now - 4 )); k4="$KIND"
+    pick $(( now - 3 )); k3="$KIND"
+    pick $(( now - 2 )); k2="$KIND"
+    pick $(( now - 1 )); k1="$KIND"
+    pick "$now"
+    init0=0; [[ "$KIND" == blink && "$k1" != blink && "$k2" != blink && "$k3" != blink ]] && init0=1
+    init1=0; [[ "$k1" == blink && "$k2" != blink && "$k3" != blink && "$k4" != blink ]] && init1=1
+    init2=0; [[ "$k2" == blink && "$k3" != blink && "$k4" != blink && "$k5" != blink ]] && init2=1
+    if (( init1 )); then
+        frame="$POSE_IDLE"                 # eyes open between the two blinks
+    elif (( init2 || init0 )); then
+        frame="$POSE_BLINK"                # second / first blink of the pair
+    elif [[ "$KIND" == special && "$k1" != special && "$k2" != special ]]; then
+        frame="$SPEC"
+    else
+        frame="$POSE_IDLE"                 # idle, suppressed blink, or cooled-down special
     fi
 
     printf '%s' "$frame"
@@ -209,19 +311,27 @@ input=$(cat)
 
 # Parse all fields in a single jq pass (one fork instead of four). Each field
 # is emitted on its own line; IFS= preserves values verbatim (no trimming).
+# jq also emits the current epoch for free — it drives the pet's animation
+# without a date fork.
 {
     IFS= read -r cwd
     IFS= read -r used
     IFS= read -r model
     IFS= read -r cache_read
     IFS= read -r session_id
+    IFS= read -r now
 } < <(jq -r '
     .cwd // .workspace.current_dir // "",
     .context_window.used_percentage // "",
     .model.display_name // (.model.id | ltrimstr("claude-")) // "",
     (.context_window.current_usage.cache_read_input_tokens // 0),
-    .session_id // ""
+    .session_id // "",
+    (now | floor)
 ' <<< "$input")
+case "$now" in ''|*[!0-9]*)
+    printf -v now '%(%s)T' -1 2>/dev/null   # bash >= 4.2 builtin
+    case "$now" in ''|*[!0-9]*) now=$(date +%s) ;; esac
+;; esac
 
 # Context usage is null on most idle renders, so cache the last-known value
 # per session (fork-free read/write) — keeps the pet's mood and the ctx text
@@ -235,18 +345,33 @@ elif [ -r "$ctx_cache" ]; then
     read -r used < "$ctx_cache"
 fi
 
-used_int=""
+# Integer % via parameter expansion — locale-proof (printf '%.0f' errors on
+# comma-decimal locales) and fork-free.
+used_int=''
+case "$used" in
+    ''|*[!0-9.]*) ;;
+    *) used_int="${used%%.*}"; used_int="${used_int:-0}" ;;
+esac
+
 mood=0
-if [ -n "$used" ]; then
-    used_int=$(printf '%.0f' "$used")
+if [ -n "$used_int" ]; then
     [ "$used_int" -ge 41 ] && mood=1
     [ "$used_int" -ge 70 ] && mood=2
 fi
 
+# Per-session seed so parallel sessions don't animate in sync (pure builtins;
+# a session id is ~36 chars, so this loop costs microseconds).
+seed=0 _i=0
+while [ "$_i" -lt "${#safe_session}" ]; do
+    printf -v _c '%d' "'${safe_session:$_i:1}"
+    seed=$(( (seed * 31 + _c) % 32768 ))
+    _i=$(( _i + 1 ))
+done
+
 # Animated Claude mascot prefix. Pass the mood (from context usage) so the pet
-# shifts from happy to worried as the window fills. The pet picks its frame by
-# weighted random, so it animates without any per-window state of its own.
-pet=$(~/.claude/scripts/claude-pet --statusline --mood "$mood" 2>/dev/null)
+# shifts from happy to worried as the window fills, plus the epoch and seed
+# that drive its per-second animation (stable redraws, double blinks).
+pet=$(~/.claude/scripts/claude-pet --statusline --mood "$mood" --now "$now" --seed "$seed" 2>/dev/null)
 
 # --- Prepend mode ----------------------------------------------------------
 # If the installer saved the user's previous statusLine command (they chose
@@ -264,7 +389,7 @@ case "$host_cmd" in
 esac
 
 if [ -n "$host_cmd" ]; then
-    host_out=$(printf '%s' "$input" | sh -c "$host_cmd" 2>/dev/null)
+    host_out=$(printf '%s' "$input" | bash -c "$host_cmd" 2>/dev/null)
     if [ -n "$pet" ]; then
         printf '%s %s\n' "$pet" "$host_out"
     else
@@ -274,17 +399,28 @@ if [ -n "$host_cmd" ]; then
 fi
 
 # --- Built-in line (complete mode) -----------------------------------------
-# Truecolor (24-bit) codes. Using explicit RGB instead of 16-color slots
-# (\033[36m etc.) keeps colors vivid regardless of the terminal theme — Warp
-# and similar terminals map the 16 ANSI slots to a muted palette, which made
-# these look washed out compared to macOS Terminal.
+# Truecolor (24-bit) when the terminal advertises it — explicit RGB keeps the
+# colors vivid regardless of theme (Warp and similar map the 16 ANSI slots to
+# a muted palette). 256-color fallback otherwise (e.g. stock Terminal.app),
+# matching the pet's own palette switch.
 RESET='\033[0m'
 DIM='\033[2m'
-CYAN='\033[38;2;38;215;225m'
-YELLOW='\033[38;2;255;200;60m'
-GREEN='\033[38;2;80;220;100m'
-RED='\033[38;2;255;85;85m'
-BLUE='\033[38;2;90;160;255m'
+case "${COLORTERM:-}" in
+    *truecolor*|*24bit*)
+        CYAN='\033[38;2;38;215;225m'
+        YELLOW='\033[38;2;255;200;60m'
+        GREEN='\033[38;2;80;220;100m'
+        RED='\033[38;2;255;85;85m'
+        BLUE='\033[38;2;90;160;255m'
+        ;;
+    *)
+        CYAN='\033[38;5;44m'
+        YELLOW='\033[38;5;220m'
+        GREEN='\033[38;5;77m'
+        RED='\033[38;5;203m'
+        BLUE='\033[38;5;75m'
+        ;;
+esac
 SEP="${DIM} | ${RESET}"
 
 # Build the display path. Collapse git-worktree paths
@@ -335,12 +471,13 @@ get_branch() {
 }
 get_branch "$cwd"
 
-# Context usage color: green < 50%, yellow < 80%, red >= 80%
+# Context usage color follows the pet's mood tiers: green < 41%, yellow
+# 41-69%, red 70%+ — the number and the face always tell the same story.
 ctx_color="$GREEN"
 if [ -n "$used_int" ]; then
-    if [ "$used_int" -ge 80 ]; then
+    if [ "$used_int" -ge 70 ]; then
         ctx_color="$RED"
-    elif [ "$used_int" -ge 50 ]; then
+    elif [ "$used_int" -ge 41 ]; then
         ctx_color="$YELLOW"
     fi
 fi
@@ -367,7 +504,7 @@ if [ -n "$branch" ]; then
     result="${result}${SEP}${BLUE}${branch}${RESET}"
 fi
 
-if [ -n "$used" ]; then
+if [ -n "$used_int" ]; then
     result="${result}${SEP}${ctx_color}ctx: ${used_int}%${RESET}"
 fi
 
@@ -378,7 +515,7 @@ else
     result="${result}${SEP}${DIM}cache: –${RESET}"
 fi
 
-echo -e "$result"
+printf '%b\n' "$result"
 CLAUDE_PET_WRAPPER_EOF
 chmod +x "$SC/claude-pet-statusline.sh"
 
@@ -462,7 +599,8 @@ if command -v jq >/dev/null 2>&1; then
   fi
 
   if [ "$offer" -eq 1 ]; then
-    if [ -r /dev/tty ]; then
+    # -r /dev/tty passes even with no controlling terminal; try to open it.
+    if { true < /dev/tty; } 2>/dev/null; then
       menu_choice "$host_line"     # sets MENU_MODE to complete|prepend
       mode="$MENU_MODE"
     else
@@ -476,8 +614,15 @@ if command -v jq >/dev/null 2>&1; then
     complete) rm -f "$HOST_CMD_FILE" ;;     # full pet line
   esac
 
-  tmp="$(mktemp)"
-  jq --arg cmd "$CMD" '.statusLine={type:"command",command:$cmd,refreshInterval:1}' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
+  # Stage next to settings.json (not mktemp): same filesystem, so mv is atomic.
+  tmp="$SETTINGS.tmp.$$"
+  if jq --arg cmd "$CMD" '.statusLine={type:"command",command:$cmd,refreshInterval:1}' "$SETTINGS" > "$tmp"; then
+    mv "$tmp" "$SETTINGS"
+  else
+    rm -f "$tmp"
+    warn "couldn't update $SETTINGS — statusLine left unchanged"
+    exit 1
+  fi
   ok "statusLine wired ${C_DIM}→ $SETTINGS${C_RS} (backup kept)"
 else
   warn "jq not found — add this to $SETTINGS manually:"

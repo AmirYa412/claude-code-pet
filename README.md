@@ -6,7 +6,7 @@
 
 A self-contained Bash script that prints one **5-cell mascot frame** every time Claude Code refreshes your statusline (about once a second). It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.
 
-The animation isn't a fixed loop: each refresh picks a **weighted-random** frame, so the pet feels alive rather than metronomic.
+The animation isn't a fixed loop: every second gets a **weighted-random** frame, so the pet feels alive rather than metronomic. Blinks play as a quick **double blink**, emotes never fire back-to-back, and its gaze settles to the side for a few seconds at a time — a resting pose, not a flash.
 <p align="center">
   <img src="./assets/claude-pet.gif" alt="claude-pet" width="720">
 </p>
@@ -17,7 +17,7 @@ The animation isn't a fixed loop: each refresh picks a **weighted-random** frame
 
 ## Why it's nice
 
-- **Zero forks, zero temp files.** Pure Bash builtins + `$RANDOM`.
+- **Zero forks, zero temp files.** Pure Bash builtins + a seeded integer hash.
 - **Never loops.** Weighted-random frames feel alive, not robotic.
 - **Context-aware.** Three tiers — relaxed (0–40%), exhausted (41–69%), panic (70%+) — a building nudge to `/compact`.
 - **No jitter.** Every frame is exactly 5 terminal cells wide.
@@ -28,8 +28,8 @@ The animation isn't a fixed loop: each refresh picks a **weighted-random** frame
 
 The pet has three moods, switched by context-window usage:
 
-- 🙂 **Relaxed** (`0–40%`) — happy & playful. Emotes roughly every 6 seconds.
-- 😩 **Exhausted** (`41–69%`) — strained. Emotes more often (~every 4.5 s) — your cue to compact.
+- 🙂 **Relaxed** (`0–40%`) — happy & playful. Emotes roughly every 12 seconds.
+- 😩 **Exhausted** (`41–69%`) — strained. Emotes more often (~every 9 s) — your cue to compact.
 - 💀 **Panic** (`70%+`) — a dead-eyed `✖ ✖` stare (no more blinking). Auto-compact is closing in.
 
 > [!WARNING]
