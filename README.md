@@ -6,7 +6,7 @@
 
 A self-contained Bash script that prints one **5-cell mascot frame** every time Claude Code refreshes your statusline (about once a second). It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.
 
-The animation isn't a fixed loop: every second gets a **weighted-random** frame, so the pet feels alive rather than metronomic. Blinks play as a quick **double-blink flutter** (shut · half-open · shut), emotes never fire back-to-back, and its gaze settles to the side for a few seconds at a time — a resting pose, not a flash.
+The animation isn't a fixed loop: every second gets a **weighted-random** frame, so the pet feels alive rather than metronomic. Blinks play as a quick **double blink**, emotes never fire back-to-back, and its gaze settles to the side for a few seconds at a time — a resting pose, not a flash.
 <p align="center">
   <img src="./assets/claude-pet.gif" alt="claude-pet" width="720">
 </p>

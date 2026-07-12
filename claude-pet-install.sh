@@ -51,12 +51,11 @@ cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 #   - redraws within the same second repaint the same frame (no twitching
 #     while Claude Code streams and redraws faster than 1s),
 #   - any second's roll can be recomputed, so a blink plays as a DOUBLE
-#     blink — ▬ ▬ · • • · ▬ ▬ across three seconds (a quick flutter; the
-#     eyes only half-reopen mid-pair) — and emotes get a cooldown (never
-#     back-to-back), and
-#   - gaze is a slow second layer: every 7s window the eyes settle centered
-#     or left and the pet idles AND blinks in that pose, so looking left is
-#     a resting position rather than a one-second flash.
+#     blink — ▬ ▬ · open · ▬ ▬ across three seconds — and emotes get a
+#     cooldown (never back-to-back), and
+#   - gaze is a slow second layer: every 7s window the eyes settle left or
+#     right (equal uptime) and the pet idles AND blinks in that pose, so
+#     gazing aside is a resting position rather than a one-second flash.
 #
 # No state files, no forks — pure bash builtins (one `date` fork only if
 # --now is omitted on bash < 4.2). The animation comes from Claude Code
@@ -89,8 +88,8 @@ Options (supplied by the bundled statusline wrapper):
   --seed N       per-session salt so parallel sessions don't animate in sync
 
 Each call picks a weighted-random frame per second, so the animation never
-loops. Blinks play as double blinks (shut · half-open · shut flutter), emotes never
-appear back-to-back, and the gaze settles centered or left for ~7s
+loops. Blinks play as double blinks (blink · open · blink), emotes never
+appear back-to-back, and the gaze settles left or right (50/50) for ~7s
 stretches (the pet idles and blinks in that pose). Stateless: no temp
 files, no forks.
 HELP
@@ -136,8 +135,6 @@ IDLE_F="${SBG} ${SEY}◒ ◒${SBG}${R} "                # default pose (exhauste
 IDLE_P="${SBG} ${SEY}✖ ✖${SBG}${R} "                # default pose (panic, crossed-out)
 BLINK="${SBG} ${SEY}▬ ▬${SBG}${R} "                 # eyes shut (bold bars) — shared
 BLINK_L="${SBG}${SEY}▬ ▬${SBG} ${R} "               # eyes shut while gazing left
-MID="${SBG} ${SEY}• •${SBG}${R} "                   # half-reopen between the two blinks
-MID_L="${SBG}${SEY}• •${SBG} ${R} "                 # half-reopen while gazing left
 LOOK_L="${SBG}${SEY}● ●${SBG} ${R} "                # gaze left (relaxed)
 LOOK_L_F="${SBG}${SEY}◒ ◒${SBG} ${R} "              # gaze left (exhausted)
 LOOK_L_P="${SBG}${SEY}✖ ✖${SBG} ${R} "              # gaze left (panic)
@@ -217,27 +214,28 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
     }
 
     # --- Gaze: where the eyes rest -------------------------------------------
-    # Looking left is an idle POSE, not a one-second flash: every 7s window
-    # the pet settles on a gaze — centered (75%) or left (25%) — and idles
-    # AND blinks in that pose. The offset decorrelates gaze from the
-    # per-second picks below.
+    # Gazing is an idle POSE, not a one-second flash. A 4-cell body only fits
+    # two eye placements — cells 2+4 (leaning right, the classic pose) and
+    # cells 1+3 (leaning left) — so every 7s window the pet settles on one of
+    # them with EQUAL uptime and idles AND blinks in that pose. The offset
+    # decorrelates gaze from the per-second picks below.
     case "$mood" in
         2) IDLE_C="$IDLE_P"; IDLE_L="$LOOK_L_P" ;;
         1) IDLE_C="$IDLE_F"; IDLE_L="$LOOK_L_F" ;;
         *) IDLE_C="$IDLE";   IDLE_L="$LOOK_L" ;;
     esac
     hash_at $(( now / 7 + 999999937 ))
-    if (( H % 100 < 25 )); then
-        POSE_IDLE="$IDLE_L"; POSE_BLINK="$BLINK_L"; POSE_MID="$MID_L"
+    if (( H % 100 < 50 )); then
+        POSE_IDLE="$IDLE_L"; POSE_BLINK="$BLINK_L"
     else
-        POSE_IDLE="$IDLE_C"; POSE_BLINK="$BLINK"; POSE_MID="$MID"
+        POSE_IDLE="$IDLE_C"; POSE_BLINK="$BLINK"
     fi
 
     # --- Per-second action: idle / double blink / special --------------------
     # Weights favour idle so the pet mostly "lives" and only occasionally
     # emotes. The same second always rolls the same action (steady redraws),
     # and the previous seconds can be recomputed, which drives two rules:
-    #   - a blink plays as a DOUBLE blink: T ▬ ▬ · T+1 • • · T+2 ▬ ▬, and
+    #   - a blink plays as a DOUBLE blink: T ▬ ▬ · T+1 open · T+2 ▬ ▬, and
     #     only starts when the two seconds before it didn't roll blink, so
     #     blinks never chain into flicker;
     #   - a special only plays when the two seconds before it didn't roll
@@ -280,7 +278,7 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
     init1=0; [[ "$k1" == blink && "$k2" != blink && "$k3" != blink && "$k4" != blink ]] && init1=1
     init2=0; [[ "$k2" == blink && "$k3" != blink && "$k4" != blink && "$k5" != blink ]] && init2=1
     if (( init1 )); then
-        frame="$POSE_MID"                  # eyes only half-reopen mid-pair: a quick flutter
+        frame="$POSE_IDLE"                 # eyes open between the two blinks
     elif (( init2 || init0 )); then
         frame="$POSE_BLINK"                # second / first blink of the pair
     elif [[ "$KIND" == special && "$k1" != special && "$k2" != special ]]; then
