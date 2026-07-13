@@ -30,7 +30,7 @@ The pet has three moods, switched by context-window usage:
 
 - 🙂 **Relaxed** (`0–40%`) — happy & playful. Emotes roughly every 12 seconds.
 - 😩 **Exhausted** (`41–69%`) — strained. Emotes more often (~every 9 s) — your cue to compact.
-- 💀 **Panic** (`70%+`) — a dead-eyed `✖ ✖` stare (no more blinking). Auto-compact is closing in.
+- 💀 **Panic** (`70%+`) — `✖ ✖` eyes, blinking fast and rattled. Auto-compact is closing in.
 
 > [!WARNING]
 > Past **41%** the pet looks exhausted; past **70%** it flips to a panic `✖ ✖` stare — your signal to `/compact` before auto-compact kicks in around 95%.
@@ -63,7 +63,7 @@ It drops the pet **and** the statusline wrapper into `~/.claude` and wires `sett
 
 > [!NOTE]
 > **Already have a statusline?** The installer detects it and shows an arrow-key menu (**↑/↓ then Enter**):
-> - **Replace it with the full pet line** — pet · model · directory · git branch · context % · cache.
+> - **Replace it with the full pet line** — pet · model · directory · git branch · context %.
 > - **Keep your statusline and add the pet in front** — the pet still cycles all three moods.
 >
 > A timestamped backup of `settings.json` is kept either way. Fresh installs (no existing statusline) go straight to the full line with no menu.

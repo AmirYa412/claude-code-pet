@@ -35,43 +35,20 @@ printf '\n  🐾 %s%sClaude Code Pet%s %s· Animated pet for your statusline%s\n
 # --- 1. the pet (single self-contained mascot) --------------------------
 cat > "$SC/claude-pet" <<'CLAUDE_PET_EOF'
 #!/usr/bin/env bash
-# claude-pet — animated Claude mascot for your Claude Code statusline.
+# claude-pet — animated Claude mascot for the Claude Code statusline.
 #
-# Modeled after the pixel-art Claude on claude.ai: a chunky orange body with
-# two eyes that cycle through moods. The mascot reacts to context usage:
-#   --mood 0  Relaxed    (0–40% context):  happy, playful expressions.
-#   --mood 1  Exhausted  (41–69% context): strained/worried — your cue to compact.
-#   --mood 2  Panic      (70%+ context):   dead-eyed ✖ ✖ stare — auto-compact is close.
+# A chunky orange pixel-Claude whose eyes react to context usage:
+#   --mood 0 Relaxed (0–40%) · 1 Exhausted (41–69%, compact cue) · 2 Panic (70%+)
 #
-# Each invocation prints ONE frame (exactly 5 terminal cells) chosen by
-# weighted random, then exits. The roll for a given second comes from an
-# integer hash of (second, --seed) — never from re-seeding $RANDOM, whose
-# LCG turns consecutive seeds into a marching pattern. Hashed rolls buy
-# three things with zero state files:
-#   - redraws within the same second repaint the same frame (no twitching
-#     while Claude Code streams and redraws faster than 1s),
-#   - any second's roll can be recomputed, so a blink plays as a DOUBLE
-#     blink — ▬ ▬ · open · ▬ ▬ across three seconds — and emotes get a
-#     cooldown (never back-to-back), and
-#   - gaze is a slow second layer: every 7s window the eyes settle left or
-#     right (equal uptime) and the pet idles AND blinks in that pose, so
-#     gazing aside is a resting position rather than a one-second flash.
+# Prints ONE 5-cell frame per call, chosen by an integer hash of (second, seed)
+# — not $RANDOM, whose LCG marches on consecutive seeds. Being a pure function
+# of the second: same-second redraws don't twitch, blinks run on a jittered
+# heartbeat (no long stares), and gaze settles left/right for ~7s at a time.
+# Stateless, no forks (one `date` only if --now is omitted on bash < 4.2).
+# Motion comes from Claude Code re-invoking this ~1/s (refreshInterval:1).
 #
-# No state files, no forks — pure bash builtins (one `date` fork only if
-# --now is omitted on bash < 4.2). The animation comes from Claude Code
-# re-invoking the command (~1 fps with refreshInterval:1); the randomness
-# keeps the motion from looping.
-#
-# Usage:
-#   claude-pet --statusline [--mood 0|1|2] [--now EPOCH] [--seed N]
-#   claude-pet --help
-#
-# Wire it into ~/.claude/settings.json (the bundled wrapper passes the flags):
-#   "statusLine": {
-#     "type": "command",
-#     "command": "bash ~/.claude/scripts/claude-pet-statusline.sh",
-#     "refreshInterval": 1
-#   }
+# Usage: claude-pet --statusline [--mood 0|1|2] [--now EPOCH] [--seed N]
+#        claude-pet --help
 
 set -u
 
@@ -97,9 +74,8 @@ HELP
 fi
 
 # --- Palette ---------------------------------------------------------------
-# Truecolor when the terminal advertises it (Warp, iTerm2, ...), 256-color
-# fallback otherwise (e.g. stock macOS Terminal.app) — for EVERY color, not
-# just the body, so eyes/decos never render as garbage on older terminals.
+# Truecolor if advertised (Warp/iTerm2), else 256-color (macOS Terminal.app) —
+# every colour, so eyes/decos aren't garbage on older terminals.
 case "${COLORTERM:-}" in
     *truecolor*|*24bit*)
         SBG=$'\033[48;2;220;110;75m'    # body bg = Claude orange
@@ -125,11 +101,10 @@ esac
 R=$'\033[0m'
 
 # --- Frames ----------------------------------------------------------------
-# Every frame is exactly 5 visible cells: a 4-cell orange body (space, eye,
-# space, eye) + a 1-cell deco slot (a glyph like ✦ ♡ ! z ° ?, or a
-# transparent space). Keeping the width fixed avoids layout jitter.
+# Every frame is exactly 5 cells: a 4-cell orange body (space,eye,space,eye) +
+# a 1-cell deco slot (a glyph or transparent space). Fixed width = no jitter.
 
-# Idle, blink, glance. Each mood has its own idle/glance; blink is shared.
+# Idle + blink faces per mood; _L variants lean left (eyes in cells 1+3).
 IDLE="${SBG} ${SEY}● ●${SBG}${R} "                  # default pose (relaxed)
 IDLE_F="${SBG} ${SEY}◒ ◒${SBG}${R} "                # default pose (exhausted, half-shaded)
 IDLE_P="${SBG} ${SEY}✖ ✖${SBG}${R} "                # default pose (panic, crossed-out)
@@ -203,9 +178,8 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
         [[ "$now" =~ ^[0-9]+$ ]] || now=$(date +%s)
     fi
 
-    # hash_at: xorshift-multiply finalizer of ($1, seed) — well-mixed, unlike
-    # re-seeding $RANDOM, whose LCG turns consecutive seeds into a marching
-    # pattern. Deterministic, so any second can be recomputed at will.
+    # hash_at: xorshift-multiply hash of ($1, seed) → H. Well-mixed and
+    # deterministic (unlike re-seeding $RANDOM), so any second recomputes exactly.
     hash_at() {  # $1 = integer -> H (31-bit hash)
         local h=$(( ($1 + seed * 7919) & 4294967295 ))
         h=$(( ((h ^ (h >> 15)) * 2654435761) & 4294967295 ))
@@ -213,12 +187,24 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
         H=$(( h ^ (h >> 16) ))
     }
 
+    # shift_left: recolour a right-lean special (eyes in cells 2+4) as left-lean
+    # (1+3) to match a left gaze; the deco stays in cell 5 (nothing sits left of
+    # the pet, and width must not change). Moves the body gap-space by matching
+    # the colour escapes' terminating "m" — NOT the escapes, which contain "[",
+    # a glob metachar bash 3.2 mishandles in ${var/pat/rep}. Order matters:
+    # "m"+ESC hits the body→reset first (add trailing space), then "m"+space
+    # drops the leading space. Result in SL.
+    shift_left() {
+        local s="$1" e=$'\033'
+        s="${s/m$e/m $e}"      # add trailing body space (4-cell body kept, deco in cell 5)
+        s="${s/m /m}"          # drop leading body space → eyes shift to cells 1+3
+        SL="$s"
+    }
+
     # --- Gaze: where the eyes rest -------------------------------------------
-    # Gazing is an idle POSE, not a one-second flash. A 4-cell body only fits
-    # two eye placements — cells 2+4 (leaning right, the classic pose) and
-    # cells 1+3 (leaning left) — so every 7s window the pet settles on one of
-    # them with EQUAL uptime and idles AND blinks in that pose. The offset
-    # decorrelates gaze from the per-second picks below.
+    # An idle POSE, not a flash: a 4-cell body fits eyes at cells 2+4 (right) or
+    # 1+3 (left), so each 7s window settles on one — equal uptime — and the pet
+    # idles and blinks in that pose. The offset decorrelates it from the picks.
     case "$mood" in
         2) IDLE_C="$IDLE_P"; IDLE_L="$LOOK_L_P" ;;
         1) IDLE_C="$IDLE_F"; IDLE_L="$LOOK_L_F" ;;
@@ -226,65 +212,50 @@ if [[ "${1:-}" == "--statusline" || "${1:-}" == "-s" ]]; then
     esac
     hash_at $(( now / 7 + 999999937 ))
     if (( H % 100 < 50 )); then
-        POSE_IDLE="$IDLE_L"; POSE_BLINK="$BLINK_L"
+        POSE_IDLE="$IDLE_L"; POSE_BLINK="$BLINK_L"; POSE_LEFT=1
     else
-        POSE_IDLE="$IDLE_C"; POSE_BLINK="$BLINK"
+        POSE_IDLE="$IDLE_C"; POSE_BLINK="$BLINK"; POSE_LEFT=0
     fi
 
-    # --- Per-second action: idle / double blink / special --------------------
-    # Weights favour idle so the pet mostly "lives" and only occasionally
-    # emotes. The same second always rolls the same action (steady redraws),
-    # and the previous seconds can be recomputed, which drives two rules:
-    #   - a blink plays as a DOUBLE blink: T ▬ ▬ · T+1 open · T+2 ▬ ▬, and
-    #     only starts when the two seconds before it didn't roll blink, so
-    #     blinks never chain into flicker;
-    #   - a special only plays when the two seconds before it didn't roll
-    #     special — emotes can never appear back-to-back.
-    pick() {  # $1 = epoch second -> KIND (idle|blink|special) + SPEC
+    # --- Blink: a guaranteed, lightly-jittered heartbeat ---------------------
+    # On a heartbeat, not chance (which left 15-20s dead stares): one double
+    # blink per HB-second bucket at a hash-jittered 0-2s offset, so gaps wander
+    # HB-2..HB+2 — never metronomic, never a long freeze. Calm HB=10 (~10s),
+    # panic HB=6 (~5-6s, rattled).
+    HB=10; [[ "$mood" == "2" ]] && HB=6
+    blink_tick() {  # $1 = second -> true if it is that bucket's blink-init second
+        local S="$1" b
+        b=$(( (S - seed) / HB ))
+        hash_at $(( b + 424242 ))              # per-bucket jitter (clobbers H; unused after)
+        (( S == seed + b * HB + H % 3 ))
+    }
+
+    # --- Special: an occasional emote ----------------------------------------
+    # pick() gives idle-vs-special per second (blinks are the heartbeat above);
+    # a special shows only if the two prior seconds weren't — no back-to-back.
+    pick() {  # $1 = epoch second -> KIND (idle|special) + SPEC
         hash_at "$1"
         local roll=$(( H % 100 )) idx=$(( H / 100 ))
         KIND=idle SPEC=''
-        if [[ "$mood" == "2" ]]; then
-            # Panic: idle 88 / specials 12 (no blink — dead stare)
-            if (( roll >= 88 )); then
-                KIND=special; SPEC="${PANIC_SPECIALS[$(( idx % ${#PANIC_SPECIALS[@]} ))]}"
-            fi
-        elif [[ "$mood" == "1" ]]; then
-            # Exhausted: idle 64 / blink 14 / specials 22 (the compact cue
-            # emotes more — ~every 9s after the cooldown)
-            if   (( roll < 64 )); then KIND=idle
-            elif (( roll < 78 )); then KIND=blink
-            else KIND=special; SPEC="${EXHAUSTED_SPECIALS[$(( idx % ${#EXHAUSTED_SPECIALS[@]} ))]}"
-            fi
-        else
-            # Relaxed: idle 72 / blink 14 / specials 14 (~one emote / 12s
-            # after the cooldown — calmer than the old every-6s flash)
-            if   (( roll < 72 )); then KIND=idle
-            elif (( roll < 86 )); then KIND=blink
-            else KIND=special; SPEC="${RELAXED_SPECIALS[$(( idx % ${#RELAXED_SPECIALS[@]} ))]}"
-            fi
-        fi
+        case "$mood" in
+            2) (( roll >= 88 )) && { KIND=special; SPEC="${PANIC_SPECIALS[$(( idx % ${#PANIC_SPECIALS[@]} ))]}"; } ;;      # 12%
+            1) (( roll >= 78 )) && { KIND=special; SPEC="${EXHAUSTED_SPECIALS[$(( idx % ${#EXHAUSTED_SPECIALS[@]} ))]}"; } ;;  # 22% (compact cue emotes more)
+            *) (( roll >= 86 )) && { KIND=special; SPEC="${RELAXED_SPECIALS[$(( idx % ${#RELAXED_SPECIALS[@]} ))]}"; } ;;   # 14%
+        esac
     }
-    # A blink roll only starts a pair when the THREE seconds before it didn't
-    # roll blink — that spaces initiations ≥4s apart, so two pairs can never
-    # touch on screen (no ▬·open·▬▬·open·▬ runs).
-    pick $(( now - 5 )); k5="$KIND"
-    pick $(( now - 4 )); k4="$KIND"
-    pick $(( now - 3 )); k3="$KIND"
     pick $(( now - 2 )); k2="$KIND"
     pick $(( now - 1 )); k1="$KIND"
     pick "$now"
-    init0=0; [[ "$KIND" == blink && "$k1" != blink && "$k2" != blink && "$k3" != blink ]] && init0=1
-    init1=0; [[ "$k1" == blink && "$k2" != blink && "$k3" != blink && "$k4" != blink ]] && init1=1
-    init2=0; [[ "$k2" == blink && "$k3" != blink && "$k4" != blink && "$k5" != blink ]] && init2=1
-    if (( init1 )); then
-        frame="$POSE_IDLE"                 # eyes open between the two blinks
-    elif (( init2 || init0 )); then
-        frame="$POSE_BLINK"                # second / first blink of the pair
+
+    if blink_tick $(( now - 1 )); then
+        frame="$POSE_IDLE"                 # eyes open between the two shut frames
+    elif blink_tick "$now" || blink_tick $(( now - 2 )); then
+        frame="$POSE_BLINK"                # first / second shut of the pair
     elif [[ "$KIND" == special && "$k1" != special && "$k2" != special ]]; then
-        frame="$SPEC"
+        # In a left gaze, left-shift the emote so it faces the same way (see shift_left).
+        if (( POSE_LEFT )); then shift_left "$SPEC"; frame="$SL"; else frame="$SPEC"; fi
     else
-        frame="$POSE_IDLE"                 # idle, suppressed blink, or cooled-down special
+        frame="$POSE_IDLE"                 # idle, or a cooled-down special
     fi
 
     printf '%s' "$frame"
@@ -297,12 +268,12 @@ exit 1
 CLAUDE_PET_EOF
 chmod +x "$SC/claude-pet"
 
-# --- 2. statusline wrapper (pet + model + cwd + branch + ctx% + cache) ---
+# --- 2. statusline wrapper (pet + model + cwd + branch + ctx%) ---
 cat > "$SC/claude-pet-statusline.sh" <<'CLAUDE_PET_WRAPPER_EOF'
 #!/usr/bin/env bash
 # Claude Code statusLine script.
 # Always renders the animated pet (mood from context %), then EITHER:
-#   - built-in line: pet | model | cwd | git branch | context % | cache, or
+#   - built-in line: pet | model | cwd | git branch | context %, or
 #   - prepend mode:  pet + your own statusLine output — used when the installer
 #     saved your previous command to scripts/.claude-pet-host-command.
 # Either way the pet keeps all 3 moods, since mood is computed here.
@@ -317,14 +288,12 @@ input=$(cat)
     IFS= read -r cwd
     IFS= read -r used
     IFS= read -r model
-    IFS= read -r cache_read
     IFS= read -r session_id
     IFS= read -r now
 } < <(jq -r '
     .cwd // .workspace.current_dir // "",
     .context_window.used_percentage // "",
     .model.display_name // (.model.id | ltrimstr("claude-")) // "",
-    (.context_window.current_usage.cache_read_input_tokens // 0),
     .session_id // "",
     (now | floor)
 ' <<< "$input")
@@ -508,13 +477,6 @@ if [ -n "$used_int" ]; then
     result="${result}${SEP}${ctx_color}ctx: ${used_int}%${RESET}"
 fi
 
-# Cache hit/miss indicator
-if [ "$cache_read" -gt 0 ] 2>/dev/null; then
-    result="${result}${SEP}${GREEN}cache: ✓${RESET}"
-else
-    result="${result}${SEP}${DIM}cache: –${RESET}"
-fi
-
 printf '%b\n' "$result"
 CLAUDE_PET_WRAPPER_EOF
 chmod +x "$SC/claude-pet-statusline.sh"
@@ -528,7 +490,7 @@ ok "wrapper ${C_DIM}→ $SC/claude-pet-statusline.sh${C_RS}"
 # Written for Bash 3.2 (macOS): integer read timeouts only, no `mapfile`, etc.
 menu_choice() {
     local existing="$1" sel=0 key rest i first=1
-    local opts=("Replace it with the full pet line  (pet · model · dir · branch · ctx · cache)"
+    local opts=("Replace it with the full pet line  (pet · model · dir · branch · ctx)"
                 "Keep my statusline — just add the pet in front")
     local n=${#opts[@]}
     # Restore the cursor on any exit/interrupt while the menu is open.
