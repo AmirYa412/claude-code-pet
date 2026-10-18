@@ -1,0 +1,13 @@
+{
+  "name": "pixel-pet",
+  "owner": {
+    "name": "AmirYa412"
+  },
+  "description": "Animated pixel Claude pet for the Claude desktop app and terminal",
+  "plugins": [
+    {
+      "name": "pixel-pet",
+      "source": "./desktop-pet"
+    }
+  ]
+}

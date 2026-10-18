@@ -1,0 +1,9 @@
+{
+  "name": "pixel-pet",
+  "version": "0.1.0",
+  "description": "A pixel-art Claude above the prompt that reacts to context usage and what Claude is doing",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Amir"
+  }
+}
