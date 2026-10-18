@@ -70,24 +70,19 @@ It drops the pet **and** the statusline wrapper into `~/.claude` and wires `sett
 
 ## Claude Desktop pet
 
-Prefer the **Claude desktop app**? The [`desktop-pet/`](./desktop-pet) folder is a Claude Code plugin, `pixel-pet`, that puts an animated pixel Claude above the prompt (it works in the terminal too), next to a statusline: **model · dir · branch · CTX bar · session cost**. Worktrees show as `🌲 repo/sub`, just like the bash pet.
+[`desktop-pet/`](./desktop-pet) is a plugin, `pixel-pet`, that puts the pet above the prompt in the **Claude desktop app**, beside model · dir · branch · CTX bar · cost.
 
-- **Same moods**: relaxed (0–40%), exhausted (41–69%), panic (70%+), each with the same emotes as the statusline pet.
-- **Calm when idle**: mostly still, with double blinks, glances and the odd beat: a wave, a yawn, floating hearts, nodding off, a coffee break or a nervous alarm, depending on the mood.
-- **Reacts to Claude**: a greeting when you send a message (lightbulb, a letter, a hop, a wave...), headphones or a thought bubble while it thinks, and a prop per tool: a hammer for edits, a pencil for new files, a magnifier for reads, a globe for the web, a keyboard for commands, a mini clone for subagents and a clipboard for to-dos. It cheers when a turn ends, sweats on errors, stretches after `/compact` and falls asleep after 10 idle minutes.
-- **Light on your machine**: every animation is discrete SVG/SMIL in the app's renderer, which wakes only when a frame changes. The plugin redraws only on events, never on a timer, and runs no processes.
+<p align="center">
+  <img src="./assets/claude-desktop-pet.png" alt="pixel-pet above the prompt in the Claude desktop app" width="720">
+</p>
+
+- **Same three moods** as the statusline pet.
+- **Reacts to Claude**: greets your messages, thinks with headphones, holds a prop per tool (hammer, pencil, magnifier, globe...).
+- **Light**: animations run in the app's renderer; the plugin only redraws on events.
 
 ### Install
 
-In the desktop app, click **+** next to the prompt box, then **Plugins** → **Add marketplace** → `AmirYa412/claude-code-pet` → **Add plugin** (`pixel-pet`).
-
-At the prompt of a terminal session:
-
-```
-/plugin install pixel-pet --marketplace AmirYa412/claude-code-pet
-```
-
-From a shell:
+Desktop app: **+** → **Plugins** → **Add marketplace** `AmirYa412/claude-code-pet` → add `pixel-pet`. Or in a terminal:
 
 ```bash
 claude plugin install pixel-pet --marketplace AmirYa412/claude-code-pet
