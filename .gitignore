@@ -1,3 +1,5 @@
 .idea
 .git
 .DS_Store
+# Types the Claude engine lays beside a loaded plugin
+desktop-pet/.claude-plugin/types/

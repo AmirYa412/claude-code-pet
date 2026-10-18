@@ -68,6 +68,31 @@ It drops the pet **and** the statusline wrapper into `~/.claude` and wires `sett
 >
 > A timestamped backup of `settings.json` is kept either way. Fresh installs (no existing statusline) go straight to the full line with no menu.
 
+## Claude Desktop pet
+
+Prefer the **Claude desktop app**? The [`desktop-pet/`](./desktop-pet) folder is a Claude Code plugin, `pixel-pet`, that puts an animated pixel Claude above the prompt (it works in the terminal too), next to a statusline: **model · dir · branch · CTX bar · session cost**. Worktrees show as `🌲 repo/sub`, just like the bash pet.
+
+- **Same moods**: relaxed (0–40%), exhausted (41–69%), panic (70%+), each with the same emotes as the statusline pet.
+- **Calm when idle**: mostly still, with double blinks, glances and the odd beat: a wave, a yawn, floating hearts, nodding off, a coffee break or a nervous alarm, depending on the mood.
+- **Reacts to Claude**: a greeting when you send a message (lightbulb, a letter, a hop, a wave...), headphones or a thought bubble while it thinks, and a prop per tool: a hammer for edits, a pencil for new files, a magnifier for reads, a globe for the web, a keyboard for commands, a mini clone for subagents and a clipboard for to-dos. It cheers when a turn ends, sweats on errors, stretches after `/compact` and falls asleep after 10 idle minutes.
+- **Light on your machine**: every animation is discrete SVG/SMIL in the app's renderer, which wakes only when a frame changes. The plugin redraws only on events, never on a timer, and runs no processes.
+
+### Install
+
+In the desktop app, click **+** next to the prompt box, then **Plugins** → **Add marketplace** → `AmirYa412/claude-code-pet` → **Add plugin** (`pixel-pet`).
+
+At the prompt of a terminal session:
+
+```
+/plugin install pixel-pet --marketplace AmirYa412/claude-code-pet
+```
+
+From a shell:
+
+```bash
+claude plugin install pixel-pet --marketplace AmirYa412/claude-code-pet
+```
+
 ---
 
 <p align="center"><sub>Made with 🐾 for Claude Code statuslines.</sub></p>
