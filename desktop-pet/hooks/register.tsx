@@ -32,12 +32,15 @@ const PINK = '#F06478'
 const RED = '#EB2D46'
 const GREY = '#B4B4B4'
 const SWEAT = '#78B4E6'
-const CYAN = '#26D7E1'
 const YELLOW = '#FFC83C'
 const GREEN = '#50DC64'
 const ALERT = '#FF5555'
-const BLUE = '#5AA0FF'
-const PURPLE = '#C792EA'
+// Statusline text: warm tones that match the pet; CTX keeps green/yellow/red.
+const MODEL_TEXT = '#E8916F'
+const DIR_TEXT = '#D6CFC7'
+const BRANCH_TEXT = '#E6C79C'
+const SEP_TEXT = '#5A5550'
+const COST_TEXT = '#9C948C'
 const NAVY = '#1E3A78'
 const NAVY_LIGHT = '#2E57A8'
 const WOOD = '#8B5A2B'
@@ -1011,7 +1014,7 @@ export const register: Register = on => {
     const isWorking = e.props.isWorking || act !== 'idle'
     const { Box, Text } = $.ui.resolve(e)
 
-    const sep = <Text dimColor wrap="truncate-end"> | </Text>
+    const sep = <Text color={SEP_TEXT} wrap="truncate-end"> | </Text>
     const ctxColor = used === null ? GREEN : used >= 70 ? ALERT : used >= 41 ? YELLOW : GREEN
     // The CTX bar: one even-height SVG bar where the surface draws SVG, else
     // the same full-block glyph for filled and empty cells (equal heights).
@@ -1032,17 +1035,17 @@ export const register: Register = on => {
     }
     const line = (
       <Box flexDirection="row" flexWrap="nowrap" alignItems="center" flexShrink={1} minWidth={0} overflow="hidden">
-        {fields?.model ? <Text color={YELLOW} bold wrap="truncate-end">{fields.model}</Text> : null}
+        {fields?.model ? <Text color={MODEL_TEXT} bold wrap="truncate-end">{fields.model}</Text> : null}
         {fields?.model ? sep : null}
-        {fields ? <Text color={CYAN} wrap="truncate-middle">{fields.dir}</Text> : null}
+        {fields ? <Text color={DIR_TEXT} wrap="truncate-middle">{fields.dir}</Text> : null}
         {fields?.branch ? sep : null}
-        {fields?.branch ? <Text color={BLUE} wrap="truncate-end">{fields.branch}</Text> : null}
+        {fields?.branch ? <Text color={BRANCH_TEXT} wrap="truncate-end">{fields.branch}</Text> : null}
         {used !== null ? sep : null}
         {used !== null ? <Text color={ctxColor} bold wrap="truncate-end">CTX </Text> : null}
         {bar}
         {used !== null ? <Text color={ctxColor} bold wrap="truncate-end"> {Math.round(used)}%</Text> : null}
         {spent !== null ? sep : null}
-        {spent !== null ? <Text color={PURPLE} wrap="truncate-end">{dollars(spent)}</Text> : null}
+        {spent !== null ? <Text color={COST_TEXT} wrap="truncate-end">{dollars(spent)}</Text> : null}
       </Box>
     )
 
