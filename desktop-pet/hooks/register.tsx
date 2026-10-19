@@ -21,7 +21,8 @@ const info = atom({ plugin: 'pixel-pet', key: 'info' } as const, null as Info | 
 const REACTION_MS = 4000
 const HEARD_MS = 3000
 const LONG_TURN_MS = 3 * 60 * 1000
-const TOOL_LINGER_MS = 3000
+const COST_MILESTONES = [5, 10, 25, 50, 100, 250, 500]
+const MIN_HOLD_MS = 8000 // a tool's prop shows at least this long before another takes over
 const SLEEP_AFTER_MS = 10 * 60 * 1000
 
 // The repo's truecolor palette, plus the props'.
@@ -39,7 +40,7 @@ const ALERT = '#FF5555'
 const MODEL_TEXT = '#E8916F'
 const DIR_TEXT = '#D6CFC7'
 const BRANCH_TEXT = '#E6C79C'
-const SEP_TEXT = '#5A5550'
+const SEP_TEXT = '#8C847C'
 const COST_TEXT = '#9C948C'
 const NAVY = '#1E3A78'
 const NAVY_LIGHT = '#2E57A8'
@@ -50,7 +51,9 @@ const GLASS = '#BFE3F7'
 const BULB = '#FFD978'
 const BULB_EDGE = '#F2B24C'
 const WHITE = '#FFFFFF'
+const BAGS = '#B4553A'
 const OCEAN = '#3B82F6'
+const ORANGE_FLAME = '#FF8A3D'
 const LAND = '#4ADE80'
 const TAN = '#E8C27A'
 const COFFEE = '#6B3E1E'
@@ -122,11 +125,12 @@ const dots = (cx: number, cells: [number, number][], fill = INK) =>
 function oneEye(kind: Eye, cx: number, isLeft: boolean): string {
   switch (kind) {
     case 'open': return px(cx - 1, EYE_Y - 1.5, 2, 2.5)
-    case 'half': return px(cx - 1, EYE_Y - 0.5, 2, 1.5)
+    // Tired: a heavy lash line, a low pupil and dark bags underneath.
+    case 'half': return px(cx - 1.5, EYE_Y - 0.5, 3, 0.5) + px(cx - 1, EYE_Y, 2, 1) + px(cx - 1.5, EYE_Y + 1.5, 3, 0.5, BAGS)
     case 'closed': return px(cx - 1.5, EYE_Y + 0.5, 3, 1)
     case 'wide': return px(cx - 1.5, EYE_Y - 1.5, 3, 2.5)
     case 'small': return px(cx - 0.5, EYE_Y - 0.5, 1, 1)
-    case 'x': return dots(cx, [[-0.75, -0.75], [0.25, -0.75], [-0.25, -0.25], [-0.75, 0.25], [0.25, 0.25]])
+    case 'x': return `<path d="M${cx - 1.25} ${EYE_Y - 1.25}L${cx + 1.25} ${EYE_Y + 1.25}M${cx + 1.25} ${EYE_Y - 1.25}L${cx - 1.25} ${EYE_Y + 1.25}" stroke="${INK}" stroke-width="0.9"/>`
     case 'happy': return dots(cx, [[-0.75, 0], [-0.25, -0.5], [0.25, 0]])
     case 'squint': return dots(cx, isLeft ? [[-0.75, -0.75], [-0.25, -0.25], [-0.75, 0.25]] : [[0.25, -0.75], [-0.25, -0.25], [0.25, 0.25]])
     case 'heart': return dots(cx, [[-0.75, -0.5], [0.25, -0.5], [-0.75, 0], [-0.25, 0], [0.25, 0], [-0.25, 0.5]], RED)
@@ -223,6 +227,36 @@ const ENVELOPE =
 // A thought bubble with a question in it.
 const BUBBLE_DOTS = [px(15, 1, 1, 1, WHITE), px(16.5, -0.5, 1.5, 1.5, WHITE)]
 const BUBBLE = px(18.5, -3, 4, 3.5, WHITE) + px(18, -2.5, 5, 2.5, WHITE)
+
+// A rocket lifting off beside the pet, flame flickering.
+const ROCKET =
+  px(18.5, 1.5, 1, 1, RED) + px(18, 2.5, 2, 4, WHITE) + px(18.5, 3.5, 1, 1, OCEAN) +
+  px(17.5, 5.5, 0.5, 1.5, RED) + px(20, 5.5, 0.5, 1.5, RED)
+const FLAMES = [px(18.5, 6.5, 1, 1.5, SPARKLE) + px(18.5, 8, 1, 0.5, ORANGE_FLAME), px(18, 6.5, 2, 1, ORANGE_FLAME) + px(18.5, 7.5, 1, 1.5, SPARKLE)]
+
+// A broom sweeping, dust puffing off the floor.
+const BROOM = px(16, 4.5, 1, 1, WOOD) + px(17, 5.5, 1, 1, WOOD) + px(18, 6.5, 1, 1, WOOD) + px(18, 7.5, 3, 1.5, TAN)
+const DUST = [px(21.5, 8.5, 0.5, 0.5, GREY) + px(22, 7.5, 0.5, 0.5, GREY), px(21, 7.5, 0.5, 0.5, GREY) + px(22, 9, 0.5, 0.5, GREY)]
+
+// A test tube: bubbling while tests run, then green or red.
+const tube = (liquid: string) =>
+  px(17, 0, 2.5, 0.5, STEEL) + px(17.5, 0.5, 1.5, 4.5, GLASS) + px(17.5, 2.5, 1.5, 2.5, liquid) + px(18, 5, 0.5, 0.5, GLASS)
+const BUBBLES = [px(18, 3, 0.5, 0.5, WHITE), px(18.5, 2, 0.5, 0.5, WHITE) + px(18, 4, 0.5, 0.5, WHITE)]
+
+// A tiny book, held open.
+const BOOK = px(16, 3.5, 3.5, 2.5, '#4F6BD8') + px(16.5, 4, 1.25, 1.5, PAPER) + px(17.75, 4, 1.25, 1.5, PAPER)
+const PAGE_LINES = [px(16.75, 4.5, 0.75, 0.5, GREY), px(18, 4.5, 0.75, 0.5, GREY)]
+
+// A butterfly, wings open and shut.
+const BUTTERFLY = [px(0, 0, 1, 1, PINK) + px(1.5, 0, 1, 1, PINK) + px(1, 0, 0.5, 1.5, INK), px(0.5, 0, 0.5, 1, PINK) + px(1.5, 0, 0.5, 1, PINK) + px(1, 0, 0.5, 1.5, INK)]
+
+// Confetti and dollar bills for the milestones.
+const CONFETTI = [
+  px(16, -2, 0.5, 0.5, PINK) + px(19, -1, 0.5, 0.5, SPARKLE) + px(21, -2.5, 0.5, 0.5, OCEAN) + px(1, -2, 0.5, 0.5, LAND),
+  px(16.5, 0, 0.5, 0.5, PINK) + px(19.5, 1, 0.5, 0.5, SPARKLE) + px(21.5, -0.5, 0.5, 0.5, OCEAN) + px(0.5, 0, 0.5, 0.5, LAND),
+  px(17, 2, 0.5, 0.5, PINK) + px(19, 3, 0.5, 0.5, SPARKLE) + px(21, 1.5, 0.5, 0.5, OCEAN) + px(1, 2, 0.5, 0.5, LAND),
+]
+const BILL = px(0, 0, 2.5, 1.5, LAND) + px(1, 0.5, 0.5, 0.5, '#1E7A3C')
 
 // A coffee cup with steam, held low.
 const CUP = px(16, 5, 2, 2, WHITE) + px(16.5, 5, 1, 0.5, COFFEE) + px(18, 5.5, 0.5, 1, WHITE)
@@ -440,6 +474,21 @@ class Scene {
   }
 
   // Panic: a nervous look at the CTX number, sweating.
+  // Relaxed: eyes follow a butterfly fluttering across.
+  butterfly(t: number): number {
+    const looks = ['0.5 -0.5', '0.5 -0.5', '0 -0.5', '0 -0.5', '0.5 0', '0.5 -0.5']
+    looks.forEach((at, i) => this.gaze.at(t + (i + 1) * 0.5, at))
+    this.gaze.at(t + 3.5, this.gaze.rest)
+    const wings = `<g transform="translate(21 -2)">${flipbook(BUTTERFLY, 0.15)}</g>`
+    return this.bit(wings, t, 3.5, ['-2 1', '-4 -0.5', '-6 1', '-8 -0.5', '-5 2', '-1 0'])
+  }
+
+  // Relaxed: reads a few pages of a tiny book.
+  read(t: number): number {
+    this.gaze.hold(t, 3.2, '0.5 0.5')
+    return this.bit(BOOK + flipbook(PAGE_LINES, 0.8), t, 3.2)
+  }
+
   nervousPeek(t: number): number {
     this.gaze.hold(t, 1.6, '0.5 0')
     this.sweat(t + 0.3)
@@ -476,6 +525,8 @@ function idleScene(m: Mood): [Scene, number] {
           [0.6, t => scene.dance(t)],
           [0.4, t => scene.sneeze(t)],
           [0.8, t => scene.stargaze(t)],
+          [0.6, t => scene.butterfly(t)],
+          [0.6, t => scene.read(t)],
         ] as [number, (t: number) => number][])
       : m === 1
         ? ([
@@ -548,13 +599,36 @@ function sprite(scene: Scene, cycle: number, blink: ReturnType<typeof blinkTrack
     bits +
     (extras.front ?? '')
 
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}" ` +
-    `width="${VIEW.w * SCALE}" height="${VIEW.h * SCALE}" shape-rendering="crispEdges">` +
-    scene.pose.wrap(body, cycle) +
-    (extras.outside ?? '') +
-    `</svg>`
-  )
+  return SVG_OPEN + scene.pose.wrap(body, cycle) + (extras.outside ?? '') + '</svg>'
+}
+
+const SVG_OPEN =
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}" ` +
+  `width="${VIEW.w * SCALE}" height="${VIEW.h * SCALE}" shape-rendering="crispEdges">`
+
+const svgBody = (svg: string) => svg.slice(SVG_OPEN.length, -'</svg>'.length)
+
+const WORK_ACTS: Activity[] = ['think', 'build', 'write', 'look', 'web', 'type', 'clone', 'todo', 'magic']
+
+// While Claude works: the running tool's animation first, then three others
+// picked at random, each held 7–10s, in one loop the renderer plays alone.
+function workingScene(m: Mood, act: Activity): string {
+  const lead: Activity = act === 'idle' ? 'think' : act
+  const others = WORK_ACTS.filter(a => a !== lead)
+    .map(a => [Math.random(), a] as const)
+    .sort((x, y) => x[0] - y[0])
+    .slice(0, 3)
+    .map(([, a]) => a)
+  const slots = [lead, ...others].map(a => ({ a, d: between(7, 10) }))
+  const cycle = slots.reduce((sum, { d }) => sum + d, 0)
+  let t = 0
+  const parts = slots.map(({ a, d }) => {
+    const vis = new Track('0', 'opacity')
+    vis.hold(t, d, '1')
+    t += d
+    return vis.wrap(svgBody(toolScene(m, a)), cycle)
+  })
+  return SVG_OPEN + parts.join('') + '</svg>'
 }
 
 // A tool's prop in the right hand, animated on its own short loop.
@@ -608,6 +682,30 @@ function toolScene(m: Mood, act: Activity): string {
     hop.at(0.3, '0 -1')
     return sprite(scene, 0.6, null, { front: hop.wrap(CLONE, 0.6) })
   }
+  if (act === 'rocket') {
+    // Shipping: a rocket lifts off, the pet watches it go.
+    const scene = new Scene('wide')
+    scene.gaze.at(0, '0.5 -0.5')
+    const lift = new Track('0 0')
+    lift.at(0.6, '0 -1')
+    lift.at(1.2, '0 -2')
+    return sprite(scene, 1.8, blinkTracks(m), { front: lift.wrap(ROCKET + flipbook(FLAMES, 0.15), 1.8) })
+  }
+  if (act === 'broom') {
+    // Cleaning up: sweeping, dust puffing.
+    const scene = new Scene('squint')
+    for (let i = 0; i < 4; i++) scene.armR.at(i * 0.3, i % 2 ? '0 0' : '0 0.5')
+    scene.gaze.at(0, '0.5 0.5')
+    return sprite(scene, 1.2, null, { hand: BROOM, front: flipbook(DUST, 0.3) })
+  }
+  if (act === 'test' || act === 'pass' || act === 'fail') {
+    // Tests: the tube bubbles while they run, then shows green or red.
+    const liquid = act === 'pass' ? LAND : act === 'fail' ? RED : SPARKLE
+    const scene = new Scene(act === 'pass' ? 'happy' : act === 'fail' ? 'squint' : 'wide', '0 -1')
+    scene.gaze.at(0, '0.5 -0.5')
+    const extra = act === 'test' ? flipbook(BUBBLES, 0.3) : act === 'pass' ? glyph('✦', 21, 0, SPARKLE, 4) : glyph('!', 21, 1, RED, 4)
+    return sprite(scene, 1.2, act === 'test' ? blinkTracks(m) : null, { hand: tube(liquid) + extra })
+  }
   if (act === 'todo') {
     // Ticking items off a clipboard.
     const scene = new Scene('open', '0 -1')
@@ -643,7 +741,11 @@ function toolScene(m: Mood, act: Activity): string {
 
 function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string {
   if (r === 'sleepy') {
+    // Dozing: z's drift up and a bubble swells from its nose.
     const scene = new Scene('closed', '0 1')
+    scene.bit(px(8.5, 5, 1, 1, GLASS), 0.5, 0.6)
+    scene.bit(px(8, 4.5, 2, 2, GLASS), 1.1, 0.8)
+    scene.bit(px(7.5, 4, 3, 3, GLASS) + px(8, 4.5, 0.5, 0.5, WHITE), 1.9, 1.2)
     const zs = [0, 1, 2]
       .map(i => {
         const vis = new Track('0', 'opacity')
@@ -662,6 +764,26 @@ function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string
     const spark = new Track('0', 'opacity')
     for (let i = 0; i < 5; i++) spark.hold(i * 0.6, 0.3, '1')
     return sprite(scene, 4, null, { outside: spark.wrap(glyph('✦', 18, 1, SPARKLE), 4) })
+  }
+
+  if (r === 'party') {
+    // A long task landed: arms up, confetti raining.
+    const scene = new Scene('happy')
+    scene.armL.hold(0, 3, '0 -2')
+    scene.armR.hold(0, 3, '0 -2')
+    for (const at of [0, 0.5, 1]) scene.pose.hold(at, 0.2, '0 -1')
+    return sprite(scene, 4, null, { outside: flipbook(CONFETTI, 0.3) })
+  }
+
+  if (r === 'money') {
+    // The session cost passed a milestone: bills fly out, eyes wide.
+    const scene = new Scene('wide')
+    scene.gaze.at(0, '0 -0.5')
+    for (let i = 0; i < 3; i++) {
+      scene.bit(`<g transform="translate(${15 + i * 2} 3)">${BILL}</g>`, i * 0.6, 1.4, ['0 -2', '1 -4'])
+    }
+    scene.bit(glyph('$', 8, -0.3, LAND, 4), 0, 2.4)
+    return sprite(scene, 4, null)
   }
 
   if (r === 'relief') {
@@ -696,7 +818,7 @@ function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string
 
   if (r === 'heard') return heardScene()
 
-  if (isWorking) return toolScene(m, act)
+  if (isWorking) return workingScene(m, act)
 
   const [scene, cycle] = idleScene(m)
   return sprite(scene, cycle, blinkTracks(m))
@@ -783,6 +905,11 @@ const TEXT_ACT: Record<Activity, { eyes: Eye; deco: string }> = {
   web: { eyes: 'wide', deco: '◍' },
   clone: { eyes: 'happy', deco: '❖' },
   todo: { eyes: 'open', deco: '☑' },
+  rocket: { eyes: 'wide', deco: '↑' },
+  broom: { eyes: 'squint', deco: '⌇' },
+  test: { eyes: 'wide', deco: '⚗' },
+  pass: { eyes: 'happy', deco: '✔' },
+  fail: { eyes: 'squint', deco: '✘' },
 }
 
 function textFace(m: Mood, r: Reaction, act: Activity, isWorking: boolean): { eyes: string; deco: string } {
@@ -790,7 +917,8 @@ function textFace(m: Mood, r: Reaction, act: Activity, isWorking: boolean): { ey
   if (r === 'done') return { eyes: TEXT_EYES.happy, deco: '✦' }
   if (r === 'oops') return { eyes: TEXT_EYES.squint, deco: '°' }
   if (r === 'heard') return { eyes: TEXT_EYES.wide, deco: '!' }
-  if (r === 'relief') return { eyes: TEXT_EYES.happy, deco: '✦' }
+  if (r === 'relief' || r === 'party') return { eyes: TEXT_EYES.happy, deco: '✦' }
+  if (r === 'money') return { eyes: TEXT_EYES.wide, deco: '$' }
   if (r === 'phew') return { eyes: TEXT_EYES.half, deco: '°' }
   if (isWorking) return { eyes: TEXT_EYES[TEXT_ACT[act].eyes], deco: TEXT_ACT[act].deco }
   return { eyes: TEXT_EYES[BASE_EYE[m]], deco: ' ' }
@@ -878,6 +1006,10 @@ const TRACK = '#4A4A4A'
 const BAR_W = 60
 const BAR_H = 8
 
+const SEP_PILL =
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 16" width="15" height="16">` +
+  `<rect x="6" width="3" height="16" rx="1.5" fill="${SEP_TEXT}"/></svg>`
+
 // A smooth bar: a rounded track and a fill of the same height.
 function ctxBarSvg(percent: number, color: string): string {
   const fill = Math.max(0, Math.min(100, percent)) / 100 * BAR_W
@@ -914,16 +1046,32 @@ const TOOL_PROPS: Record<string, Activity> = {
   Bash: 'type', BashOutput: 'type', KillShell: 'type', PowerShell: 'type',
   Agent: 'clone', Task: 'clone',
   TodoWrite: 'todo', TaskCreate: 'todo', TaskUpdate: 'todo', TaskList: 'todo', TaskGet: 'todo',
+  LSP: 'look', SendMessage: 'clone', ListAgents: 'clone',
+  SendUserFile: 'write', Artifact: 'write', AskUserQuestion: 'think',
 }
 
-// Anything else (MCP tools, skills, ...) gets the magic wand.
+// MCP tools by what they do; anything else gets the magic wand.
+// A shell command can say more than its tool: shipping, cleaning up, testing.
+function commandActivity(command: string): Activity | undefined {
+  if (/\b(git push|gh pr merge|deploy|publish|release)\b/.test(command)) return 'rocket'
+  if (/(^|[\s;&|])(rm|rmdir|trash)\s|\b(clean|prune|delete)\b/.test(command)) return 'broom'
+  if (/\b(test|pytest|jest|vitest|playwright|mocha|rspec|go test|cargo test)\b/.test(command)) return 'test'
+  return undefined
+}
+
 function activityOf(tool: string): Activity {
-  return TOOL_PROPS[tool] ?? 'magic'
+  const known = TOOL_PROPS[tool]
+  if (known) return known
+  if (/browser|chrome|navigate|fetch|web/i.test(tool)) return 'web'
+  if (/plan|todo|task/i.test(tool)) return 'todo'
+  if (/read|search|find|list|get/i.test(tool)) return 'look'
+  if (/write|edit|create|update|doc/i.test(tool)) return 'write'
+  return 'magic'
 }
 
 let revert: Timer | undefined
 let sleep: Timer | undefined
-let linger: Timer | undefined
+let shownAt = 0 // when the current prop took over
 
 async function react($: EngineInterface, next: Reaction, ms?: number) {
   revert?.cancel()
@@ -935,8 +1083,6 @@ async function react($: EngineInterface, next: Reaction, ms?: number) {
 }
 
 async function doing($: EngineInterface, next: Activity) {
-  linger?.cancel()
-  linger = undefined
   if ((await read($, activity)) !== next) await update($, activity, () => next)
 }
 
@@ -956,7 +1102,12 @@ export const register: Register = on => {
     if ((await read($, mood)) !== tier) await update($, mood, () => tier)
     if (percent !== undefined && (await read($, ctx)) !== percent) await update($, ctx, () => percent)
     const usd = e.cost?.usd
-    if (usd !== undefined && (await read($, cost)) !== usd) await update($, cost, () => usd)
+    const was = await read($, cost)
+    if (usd !== undefined && was !== usd) {
+      await update($, cost, () => usd)
+      // Passing $5, $10, $25... gets a reaction (not the first reading).
+      if (was !== null && COST_MILESTONES.some(mark => was < mark && usd >= mark)) await react($, 'money', REACTION_MS)
+    }
 
     return next(e)
   })
@@ -970,14 +1121,22 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
-    // The prop takes over from the greeting at once.
-    if ((await read($, reaction)) === 'heard') await react($, 'idle')
-    await doing($, activityOf(String(e.tool)))
+    // A new prop takes over only once the current one has had its time.
+    const now = await $.clock.now()
+    const current = await read($, activity)
+    const command = e.tool === 'Bash' ? String((e as { command?: unknown }).command ?? '') : ''
+    const wanted = commandActivity(command) ?? activityOf(String(e.tool))
+    if (wanted !== current && (current === 'think' || current === 'idle' || now - shownAt >= MIN_HOLD_MS)) {
+      await doing($, wanted)
+      shownAt = now
+    }
     const ran = await next(e)
-    if (ran.deny === undefined && ran.isError === true) await react($, 'oops', REACTION_MS)
-    // Back to thinking unless another tool picks up within the linger.
-    linger?.cancel()
-    linger = $.clock.after(TOOL_LINGER_MS, () => void doing($, 'think'))
+    const failed = ran.deny === undefined && ran.isError === true
+    if ((await read($, activity)) === 'test') {
+      // The tube shows the result for its own hold.
+      await doing($, failed ? 'fail' : 'pass')
+      shownAt = await $.clock.now()
+    } else if (failed) await react($, 'oops', REACTION_MS)
 
     return ran
   }).catch(($, e, next) => next(e))
@@ -993,7 +1152,9 @@ export const register: Register = on => {
     // A subagent's turn ending is no reason to cheer.
     if (e.agentId !== undefined) return next(e)
     await doing($, 'idle')
-    await react($, e.durationMs > LONG_TURN_MS ? 'phew' : 'done', REACTION_MS)
+    // A long task: confetti when relaxed, worn out otherwise.
+    const long = e.durationMs > LONG_TURN_MS
+    await react($, long ? ((await read($, mood)) === 0 ? 'party' : 'phew') : 'done', REACTION_MS)
     sleep?.cancel()
     sleep = $.clock.after(SLEEP_AFTER_MS, () => void react($, 'sleepy'))
     await refreshInfo($).catch(() => undefined)
@@ -1014,7 +1175,16 @@ export const register: Register = on => {
     const isWorking = e.props.isWorking || act !== 'idle'
     const { Box, Text } = $.ui.resolve(e)
 
-    const sep = <Text color={SEP_TEXT} wrap="truncate-end"> | </Text>
+    // A bold pill between fields where the surface draws SVG; a heavy bar elsewhere.
+    let sep = <Text color={SEP_TEXT} bold wrap="truncate-end"> ┃ </Text>
+    if (e.surface !== 'terminal') {
+      const { Svg } = $.ui.resolve(e)
+      sep = (
+        <Box flexShrink={0}>
+          <Svg source={SEP_PILL} alt="|" width={15} height={16} />
+        </Box>
+      )
+    }
     const ctxColor = used === null ? GREEN : used >= 70 ? ALERT : used >= 41 ? YELLOW : GREEN
     // The CTX bar: one even-height SVG bar where the surface draws SVG, else
     // the same full-block glyph for filled and empty cells (equal heights).

@@ -47,6 +47,7 @@ test('the statusline fields sit beside the pet on every surface', async ($, on) 
 })
 
 test('a tool call hands the pet its prop', async ($, on) => {
+  mock.clock(on)
   on('tool.call', () => ({ result: 'ok' }))
   await $.tool.call({ tool: 'Edit', file_path: '/tmp/x', old_string: 'a', new_string: 'b' })
   const ui = await $.ui.mount(band('terminal', true))
@@ -79,5 +80,40 @@ test('the pet knows it is working even when the band does not say so', async ($,
   await clock.advance(3500)
   const ui = await $.ui.mount(band('terminal', false))
   expect(await ui.find({ type: 'Text', text: /♪/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a prop holds for a while before the next tool takes over', async ($, on) => {
+  const clock = mock.clock(on)
+  on('tool.call', () => ({ result: 'ok' }))
+  const edit = { tool: 'Edit', file_path: '/tmp/x', old_string: 'a', new_string: 'b' } as Parameters<typeof $.tool.call>[0]
+  const bash = { tool: 'Bash', command: 'ls' } as Parameters<typeof $.tool.call>[0]
+  await $.tool.call(edit)
+  await $.tool.call(bash)
+  const ui = await $.ui.mount(band('terminal', true))
+  expect(await ui.find({ type: 'Text', text: /⚒/ })).toBeDefined()
+
+  await clock.advance(9000)
+  await $.tool.call(bash)
+  expect(await ui.find({ type: 'Text', text: /⌨/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('shell commands pick their own props: tests show their result, pushes launch', async ($, on) => {
+  mock.clock(on)
+  on('tool.call', () => ({ result: 'ok' }))
+  const ui = await $.ui.mount(band('terminal', true))
+  await $.tool.call({ tool: 'Bash', command: 'npm test' } as Parameters<typeof $.tool.call>[0])
+  expect(await ui.find({ type: 'Text', text: /✔/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('passing a cost milestone gets a reaction', async ($, on) => {
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  const at = (usd: number) => ({ context: { window: 200000 }, rateLimits: [], changed: [], cost: { usd } })
+  await $.session.measure(at(4.5))
+  await $.session.measure(at(5.2))
+  const ui = await $.ui.mount(band('terminal'))
+  expect(await ui.find({ type: 'Text', text: /\$/ })).toBeDefined()
   await ui.unmount()
 })

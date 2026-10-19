@@ -2,10 +2,10 @@
 export type Mood = 0 | 1 | 2
 
 /** A short-lived reaction layered over the mood; `idle` is none. */
-export type Reaction = 'idle' | 'heard' | 'done' | 'phew' | 'relief' | 'oops' | 'sleepy'
+export type Reaction = 'idle' | 'heard' | 'done' | 'phew' | 'party' | 'money' | 'relief' | 'oops' | 'sleepy'
 
 /** What the pet does: `idle` between turns; while Claude works, thinking or a tool's prop. */
-export type Activity = 'idle' | 'think' | 'build' | 'write' | 'look' | 'web' | 'type' | 'clone' | 'todo' | 'magic'
+export type Activity = 'idle' | 'think' | 'build' | 'write' | 'look' | 'web' | 'type' | 'clone' | 'todo' | 'magic' | 'rocket' | 'broom' | 'test' | 'pass' | 'fail'
 
 /** The statusline fields drawn beside the pet. */
 export type Info = { model: string; dir: string; branch: string }
