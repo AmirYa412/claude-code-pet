@@ -389,8 +389,17 @@ class Scene {
     return 1.6
   }
 
+  // A hop with a wind-up and a landing: squash, rise, peak, fall, settle.
+  hop(t: number, times = 1, height = 1): number {
+    const steps: [number, string][] = [[0, '0 0.5'], [0.08, `0 ${-height / 2}`], [0.16, `0 ${-height}`], [0.3, `0 ${-height / 2}`], [0.38, '0 0.5'], [0.46, this.pose.rest]]
+    for (let i = 0; i < times; i++) for (const [at, v] of steps) this.pose.at(t + i * 0.5 + at, v)
+    return times * 0.5
+  }
+
   wave(t: number): number {
-    for (let i = 0; i < 4; i++) this.armR.at(t + i * 0.3, i % 2 ? '0 -1' : '0 -2')
+    // Arm rises, waves twice through a middle pose, then lowers.
+    const arm = ['0 -1', '0 -2', '0 -1.5', '0 -2', '0 -1.5', '0 -2', '0 -1']
+    arm.forEach((v, i) => this.armR.at(t + i * 0.17, v))
     this.armR.at(t + 1.2, this.armR.rest)
     this.emote({ eye: 'happy' }, t, 1.2)
     return 1.2
@@ -632,13 +641,16 @@ function workingScene(m: Mood, act: Activity): string {
   const parts = slots.map(({ a, d }) => {
     const vis = new Track('0', 'opacity')
     vis.hold(t, d, '1')
+    // Each hand-off pops up a pixel and settles, so the cut reads as a beat.
+    const settle = new Track('0 0')
+    settle.at(t, '0 -0.5')
+    settle.at(t + 0.15, '0 0')
     t += d
-    return vis.wrap(svgBody(toolScene(m, a)), cycle)
+    return vis.wrap(settle.wrap(svgBody(toolScene(m, a)), cycle), cycle)
   })
   return SVG_OPEN + parts.join('') + '</svg>'
 }
 
-// A tool's prop in the right hand, animated on its own short loop.
 // A Scene class whose instances carry the mood, for the working scenes.
 function moodScene(m: Mood) {
   return class extends Scene {
@@ -646,15 +658,22 @@ function moodScene(m: Mood) {
   }
 }
 
+// A tool's prop in the right hand, animated on its own short loop.
 function toolScene(m: Mood, act: Activity): string {
   const Scene = moodScene(m)
   if (act === 'build') {
-    // Hammering: raise, strike.
+    // Hammering: a slow raise, a fast strike, a jolt on impact.
     const scene = new Scene('squint')
-    scene.armR.at(0, '0 -1')
-    scene.armR.at(0.35, '0 0')
+    scene.armR.at(0, '0 -0.5')
+    scene.armR.at(0.2, '0 -1')
+    scene.armR.at(0.5, '0 0')
+    scene.pose.hold(0.5, 0.08, '0 0.5')
     scene.gaze.at(0, '0.5 0')
-    return sprite(scene, 0.7, null, { hand: flipbook([HAMMER_UP, HAMMER_DOWN], 0.35) })
+    const up = new Track('1', 'opacity')
+    up.hold(0.5, 0.25, '0')
+    const down = new Track('0', 'opacity')
+    down.hold(0.5, 0.25, '1')
+    return sprite(scene, 0.75, null, { hand: up.wrap(HAMMER_UP, 0.75) + down.wrap(HAMMER_DOWN, 0.75) })
   }
   if (act === 'look') {
     // Peering through a magnifier that bobs up and down.
@@ -773,7 +792,7 @@ function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string
 
   if (r === 'done') {
     const scene = new Scene('happy')
-    scene.pose.hold(0, 0.25, '0 -1')
+    scene.hop(0)
     scene.armL.hold(0, 2.4, '0 -2')
     scene.armR.hold(0, 2.4, '0 -2')
     const spark = new Track('0', 'opacity')
@@ -786,7 +805,7 @@ function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string
     const scene = new Scene('happy')
     scene.armL.hold(0, 3, '0 -2')
     scene.armR.hold(0, 3, '0 -2')
-    for (const at of [0, 0.5, 1]) scene.pose.hold(at, 0.2, '0 -1')
+    scene.hop(0, 3)
     return sprite(scene, 4, null, { outside: flipbook(CONFETTI, 0.3) })
   }
 
@@ -859,7 +878,7 @@ function heardScene(m: Mood): string {
   if (variant === 'jump') {
     // Startled into a double hop, arms up.
     const scene = new Scene('wide')
-    for (const at of [0, 0.4]) scene.pose.hold(at, 0.2, '0 -1')
+    scene.hop(0, 2)
     scene.armL.hold(0, 0.8, '0 -2')
     scene.armR.hold(0, 0.8, '0 -2')
     scene.emote({ eye: 'happy' }, 1, 2)
@@ -893,7 +912,7 @@ function heardScene(m: Mood): string {
     // A lightbulb flickers on beside the head.
     const scene = new Scene('wide')
     scene.gaze.at(0, '0.5 -0.5')
-    scene.pose.hold(0, 0.2, '0 -0.5')
+    scene.hop(0, 1, 0.5)
     const glass = new Track('0', 'opacity')
     glass.at(0.2, '1')
     const rays = new Track('0', 'opacity')
