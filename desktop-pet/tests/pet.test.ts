@@ -117,3 +117,15 @@ test('passing a cost milestone gets a reaction', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /\$/ })).toBeDefined()
   await ui.unmount()
 })
+
+test('working animations wear the mood: panic keeps its crossed eyes on the job', async ($, on) => {
+  mock.clock(on)
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  on('tool.call', () => ({ result: 'ok' }))
+  await $.session.measure(measure(85))
+  await $.tool.call({ tool: 'Edit', file_path: '/tmp/x', old_string: 'a', new_string: 'b' } as Parameters<typeof $.tool.call>[0])
+  const ui = await $.ui.mount(band('desktop', true))
+  const svg = String((await ui.find({ type: 'Svg' }))?.props.source)
+  expect(svg).toContain('stroke-width="0.9"')
+  await ui.unmount()
+})

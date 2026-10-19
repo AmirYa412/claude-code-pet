@@ -140,6 +140,10 @@ function oneEye(kind: Eye, cx: number, isLeft: boolean): string {
   }
 }
 
+// Tired or panicked, every open-eyed look becomes the mood's own eyes; a shut
+// eye stays shut.
+const moodEye = (m: Mood, eye: Eye): Eye => (m === 0 || eye === 'closed' ? eye : BASE_EYE[m])
+
 const eyes = (kind: Eye) => oneEye(kind, EYE_X[0]!, true) + oneEye(kind, EYE_X[1]!, false)
 
 const glyph = (text: string, x: number, y: number, color: string, size = 5) =>
@@ -327,6 +331,9 @@ class Scene {
   base = new Track('1', 'opacity')
   emotes: { em: Emote; vis: Track }[] = []
   bits: { vis: Track; move: Track; inner: string }[] = []
+
+  // Working and greeting scenes set this, so their eyes wear the mood's look.
+  mood: Mood = 0
 
   constructor(readonly face: Eye, armRest = '0 0') {
     this.armL = new Track(armRest)
@@ -577,12 +584,12 @@ type Extras = { behind?: string; front?: string; outside?: string; hand?: string
 
 function sprite(scene: Scene, cycle: number, blink: ReturnType<typeof blinkTracks> | null, extras: Extras = {}): string {
   const legs = [3, 5, 10, 12].map(x => px(x, 8, 1, 2, ORANGE)).join('')
-  const emoteEyes = scene.emotes.map(({ em, vis }) => vis.wrap(eyes(em.eye), cycle)).join('')
+  const emoteEyes = scene.emotes.map(({ em, vis }) => vis.wrap(eyes(moodEye(scene.mood, em.eye)), cycle)).join('')
   const emoteDecos = scene.emotes
     .filter(({ em }) => em.deco)
     .map(({ em, vis }) => vis.wrap(glyph(em.deco!, 18, 1, em.color ?? SPARKLE), cycle))
     .join('')
-  const openEyes = scene.base.wrap(eyes(scene.face), cycle) + emoteEyes
+  const openEyes = scene.base.wrap(eyes(moodEye(scene.mood, scene.face)), cycle) + emoteEyes
   const face = blink
     ? blink.open.wrap(openEyes, blink.cycle) + blink.shut.wrap(eyes('closed'), blink.cycle)
     : openEyes
@@ -632,7 +639,15 @@ function workingScene(m: Mood, act: Activity): string {
 }
 
 // A tool's prop in the right hand, animated on its own short loop.
+// A Scene class whose instances carry the mood, for the working scenes.
+function moodScene(m: Mood) {
+  return class extends Scene {
+    override mood = m
+  }
+}
+
 function toolScene(m: Mood, act: Activity): string {
+  const Scene = moodScene(m)
   if (act === 'build') {
     // Hammering: raise, strike.
     const scene = new Scene('squint')
@@ -816,7 +831,7 @@ function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string
     return sprite(scene, 4, null)
   }
 
-  if (r === 'heard') return heardScene()
+  if (r === 'heard') return heardScene(m)
 
   if (isWorking) return workingScene(m, act)
 
@@ -825,7 +840,8 @@ function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string
 }
 
 // A message landed: one of a few greetings, picked fresh each time.
-function heardScene(): string {
+function heardScene(m: Mood): string {
+  const Scene = moodScene(m)
   const variant = pick(['bulb', 'letter', 'jump', 'pumped', 'hello'] as const)
 
   if (variant === 'letter') {
