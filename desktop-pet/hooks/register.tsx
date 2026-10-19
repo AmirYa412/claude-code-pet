@@ -902,11 +902,12 @@ function toolScene(m: Mood, act: Activity): string {
     scene.gaze.at(0, '0.5 -0.5')
     if (act === 'test') return sprite(scene, 1.2, blinkTracks(m), { hand: tube(liquid) + flipbook(BUBBLES, 0.3) })
     if (act === 'pass') {
-      // Green: the tube goes up twice, sparkles twinkle, a little hop.
-      for (let i = 0; i < 2; i++) scene.armR.hold(i * 0.5, 0.25, '0 -2')
+      // Green: the tube pumps high twice, then swirls while it bubbles; a hop, sparkles twinkling.
+      for (let i = 0; i < 2; i++) scene.armR.hold(i * 0.6, 0.3, '0 -2.5')
+      for (let i = 0; i < 6; i++) scene.armR.at(1.2 + i * 0.2, i % 2 ? '0 -1' : '0 -1.5')
       scene.hop(1.4)
       const twinkle = flipbook([glyph('✦', 21, 0, SPARKLE, 4), glyph('✦', 20, -2, SPARKLE, 3), ''], 0.4)
-      return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + twinkle })
+      return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + flipbook(BUBBLES, 0.3) + twinkle })
     }
     // Red: a head shake at the tube, the "!" flashing, a bead of sweat.
     for (let i = 0; i < 4; i++) scene.pose.at(i * 0.12, i % 2 ? '0.5 0' : '-0.5 0')
