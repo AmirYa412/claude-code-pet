@@ -718,56 +718,78 @@ function variantScene(m: Mood, act: Activity): string | undefined {
   const Scene = moodScene(m)
   switch (act) {
     case 'build': {
-      // Twisting a wrench on a bolt.
+      // Cranking a wrench on a bolt, the other hand bracing, leaning into each turn.
       const scene = new Scene('squint')
-      scene.armR.at(0.4, '0 -0.5')
+      for (let i = 0; i < 4; i++) scene.armR.at(i * 0.2, i % 2 ? '0 -0.5' : '0 0.5')
+      scene.armL.hold(0.2, 0.4, '0 0.5')
+      scene.pose.hold(0.2, 0.2, '0.5 0')
       scene.gaze.at(0, '0.5 -0.5')
-      return sprite(scene, 0.8, null, { hand: WRENCH + flipbook(WRENCH_SPARK, 0.4) })
+      return sprite(scene, 0.8, blinkTracks(m), { hand: WRENCH + flipbook(WRENCH_SPARK, 0.4) })
     }
     case 'write': {
       // A quill leaving ink on the sheet.
       const scene = new Scene('small')
       for (let i = 0; i < 6; i++) scene.armR.at(i * 0.2, i % 2 ? '0 -0.5' : '0 0')
+      // Dipping into the ink, then a glance at the work.
+      scene.armR.hold(1.2, 0.3, '0 -1.5')
+      scene.armL.hold(1.6, 0.4, '0 -0.5')
       scene.gaze.at(0, '0.5 0.5')
-      return sprite(scene, 1.2, blinkTracks(m), { hand: QUILL, front: SHEET + flipbook(INK_DOTS, 0.4) })
+      scene.gaze.hold(1.6, 0.4, '0 0')
+      return sprite(scene, 2.4, blinkTracks(m), { hand: QUILL, front: SHEET + flipbook(INK_DOTS, 0.4) })
     }
     case 'look': {
-      // Binoculars up, scanning back and forth.
+      // Binoculars up in both hands, the whole body sweeping left and right.
       const scene = new Scene('wide', '0 -2')
-      scene.armR.at(0.8, '0 -2.5')
+      for (const [t, x] of [[0, '-0.5'], [0.6, '0'], [1.2, '0.5'], [1.8, '0']] as const) scene.pose.at(t, `${x} 0`)
+      scene.armR.hold(1.2, 0.3, '0 -2.5')
+      scene.armL.hold(1.2, 0.3, '0 -2.5')
       scene.gaze.at(0, '0.5 -0.5')
-      scene.gaze.at(0.8, '0 -0.5')
-      return sprite(scene, 1.6, blinkTracks(m), { hand: BINOCULARS })
+      scene.gaze.at(1.2, '0 -0.5')
+      return sprite(scene, 2.4, blinkTracks(m), { hand: BINOCULARS })
     }
     case 'web': {
-      // A satellite dish pulsing signal.
+      // A satellite dish pulsing signal: tuning it, then a hand to the ear, listening.
       const scene = new Scene('wide')
+      for (let i = 0; i < 4; i++) scene.armR.at(i * 0.2, i % 2 ? '0 -1' : '0 -0.5')
+      scene.armR.at(0.8, '0 0')
+      scene.armL.hold(1.2, 0.8, '0 -2')
       scene.gaze.at(0, '0.5 -0.5')
-      return sprite(scene, 1.2, blinkTracks(m), { front: DISH + flipbook(WAVES, 0.4) })
+      scene.gaze.hold(1.2, 0.8, '-0.5 -0.5')
+      scene.pose.hold(1.2, 0.8, '-0.5 0')
+      return sprite(scene, 2.4, blinkTracks(m), { front: DISH + flipbook(WAVES, 0.4) })
     }
     case 'type': {
       // Tapping at a tiny laptop, code scrolling.
       const scene = new Scene('half')
+      // Both hands typing, out of step.
       for (let i = 0; i < 6; i++) scene.armR.at(i * 0.15, i % 2 ? '0 0.5' : '0 1')
+      for (let i = 0; i < 6; i++) scene.armL.at(i * 0.15, i % 2 ? '0 1' : '0 0.5')
       scene.gaze.at(0, '0.5 0.5')
       return sprite(scene, 0.9, blinkTracks(m), { front: LAPTOP + flipbook(CODE, 0.3) })
     }
     case 'rocket': {
-      // A hot-air balloon floating up.
+      // A hot-air balloon floating up, the pet waving it off with a hop.
       const scene = new Scene('wide')
-      scene.gaze.at(0, '0.5 -0.5')
+      scene.gaze.at(0, '0.5 0')
+      scene.gaze.at(0.8, '0.5 -0.5')
       const rise = new Track('0 1')
       rise.at(0.8, '0 0')
       rise.at(1.6, '0 -1')
+      ;['0 -1', '0 -2', '0 -1.5', '0 -2', '0 -1.5', '0 -2'].forEach((v, i) => scene.armL.at(0.8 + i * 0.17, v))
+      scene.armL.at(1.9, '0 0')
+      scene.hop(0.2)
       return sprite(scene, 2.4, blinkTracks(m), { front: rise.wrap(BALLOON, 2.4) })
     }
     case 'broom': {
-      // Tossing a paper ball into the trash.
+      // Tossing a paper ball into the trash: wind-up, throw, a little fist pump.
       const scene = new Scene('squint')
       scene.armR.at(0, '0 -1')
       scene.armR.at(0.4, '0 0')
+      scene.pose.hold(0, 0.4, '-0.5 0')
       scene.gaze.at(0, '0.5 0.5')
-      return sprite(scene, 1.6, null, { front: CAN + flipbook(TOSS, 0.4) })
+      scene.armL.hold(1.2, 0.2, '0 -2')
+      scene.emote({ eye: 'happy' }, 1.2, 0.4)
+      return sprite(scene, 1.6, blinkTracks(m), { front: CAN + flipbook(TOSS, 0.4) })
     }
     case 'test':
     case 'pass':
@@ -781,10 +803,19 @@ function variantScene(m: Mood, act: Activity): string | undefined {
           : act === 'fail'
             ? trafficLight(RED, LIGHT_OFF, LIGHT_OFF)
             : flipbook([trafficLight(LIGHT_OFF, SPARKLE, LIGHT_OFF), trafficLight(LIGHT_OFF, LIGHT_OFF, LIGHT_OFF)], 0.4)
-      if (act === 'test') return sprite(scene, 0.8, blinkTracks(m), { front: light })
-      // The result: a hop for green, a head shake for red, the lamp flashing.
-      if (act === 'pass') scene.hop(0.8)
-      else {
+      if (act === 'test') {
+        // Waiting at the light: tapping a hand, glancing between it and you.
+        for (let i = 0; i < 4; i++) scene.armL.at(i * 0.2, i % 2 ? '0 0.5' : '0 0')
+        scene.gaze.hold(1.2, 0.8, '0 0')
+        return sprite(scene, 2.4, blinkTracks(m), { front: light })
+      }
+      // The result: a hop with both arms up for green, a head shake and a facepalm for red.
+      if (act === 'pass') {
+        scene.hop(0.8)
+        scene.armL.hold(0.8, 0.6, '0 -2')
+        scene.armR.hold(0.8, 0.6, '0 -2')
+      } else {
+        scene.armL.hold(1.4, 0.8, '0 -2')
         for (let i = 0; i < 4; i++) scene.pose.at(0.8 + i * 0.12, i % 2 ? '0.5 0' : '-0.5 0')
         scene.pose.at(1.28, '0 0')
       }
@@ -798,19 +829,26 @@ function variantScene(m: Mood, act: Activity): string | undefined {
       pop.at(0.4, '0 0')
       pop.at(1.2, '0 -0.5')
       pop.at(1.4, '0 0')
-      return sprite(scene, 2, null, { front: pop.wrap(CLONE, 2) + BOX })
+      // Clapping as the clone appears.
+      for (let i = 0; i < 4; i++) scene.armL.at(0.4 + i * 0.15, i % 2 ? '0 0' : '0 -1')
+      for (let i = 0; i < 4; i++) scene.armR.at(0.4 + i * 0.15, i % 2 ? '0 0' : '0 -1')
+      return sprite(scene, 2, blinkTracks(m), { front: pop.wrap(CLONE, 2) + BOX })
     }
     case 'todo': {
       // Slapping sticky notes up, one by one.
       const scene = new Scene('open')
       for (let i = 0; i < 3; i++) scene.armR.hold(i * 0.6, 0.2, '0 -2')
+      // Peeling the next note off the pad in the other hand.
+      for (let i = 0; i < 3; i++) scene.armL.hold(i * 0.6 + 0.3, 0.2, '0 -1')
       scene.gaze.at(0, '0.5 -0.5')
       return sprite(scene, 1.8, blinkTracks(m), { front: flipbook(NOTES, 0.6) })
     }
     case 'magic': {
-      // Gazing into a glowing crystal ball.
+      // Hands circling over a glowing crystal ball.
       const scene = new Scene('wide')
       scene.gaze.at(0, '0.5 0.5')
+      for (let i = 0; i < 4; i++) scene.armR.at(i * 0.3, ['0 -1', '0 -0.5', '0 0', '0 -0.5'][i]!)
+      for (let i = 0; i < 4; i++) scene.armL.at(i * 0.3, ['0 0', '0 -0.5', '0 -1', '0 -0.5'][i]!)
       return sprite(scene, 1.2, blinkTracks(m), { front: flipbook(ORB, 0.6) })
     }
     default:
@@ -836,40 +874,55 @@ function toolScene(m: Mood, act: Activity): string {
     up.hold(0.5, 0.25, '0')
     const down = new Track('0', 'opacity')
     down.hold(0.5, 0.25, '1')
-    return sprite(scene, 0.75, null, { hand: up.wrap(HAMMER_UP, 0.75) + down.wrap(HAMMER_DOWN, 0.75) })
+    // The other hand holds the nail, flinching on each strike.
+    scene.armL.hold(0.5, 0.15, '0 -0.5')
+    return sprite(scene, 0.75, blinkTracks(m), { hand: up.wrap(HAMMER_UP, 0.75) + down.wrap(HAMMER_DOWN, 0.75) })
   }
   if (act === 'look') {
-    // Peering through a magnifier that bobs up and down.
+    // Sweeping a magnifier along the lines, leaning in, chin-scratch on the other hand.
     const scene = new Scene('wide')
-    scene.armR.at(0.8, '0 -0.5')
+    for (let i = 0; i < 4; i++) scene.armR.at(i * 0.4, i % 2 ? '0 -0.5' : '0 0')
     scene.gaze.at(0, '0.5 -0.5')
-    return sprite(scene, 1.6, blinkTracks(m), { hand: MAGNIFIER })
+    scene.gaze.at(0.8, '0.5 0')
+    scene.pose.hold(0.8, 0.8, '0.5 0')
+    scene.armL.hold(1.6, 0.6, '0 -1.5')
+    return sprite(scene, 2.4, blinkTracks(m), { hand: MAGNIFIER })
   }
   if (act === 'magic') {
-    // Waving a wand that sheds sparkles.
+    // A flourish of the wand, the other arm thrown out for drama.
     const scene = new Scene('happy')
-    scene.armR.at(0.45, '0 -1')
-    return sprite(scene, 0.9, null, { hand: WAND + flipbook(WAND_SPARKS, 0.3) })
+    scene.armR.at(0.3, '0 -1')
+    scene.armR.at(0.6, '0 -2')
+    scene.armL.hold(0.6, 0.3, '0 -1')
+    return sprite(scene, 0.9, blinkTracks(m), { hand: WAND + flipbook(WAND_SPARKS, 0.3) })
   }
   if (act === 'write') {
     // Scribbling on a sheet: the hand jiggles, the line grows.
     const scene = new Scene('small')
     for (let i = 0; i < 6; i++) scene.armR.at(i * 0.2, i % 2 ? '0 -0.5' : '0 0')
+    // A pencil tap on the chin between lines.
+    scene.armR.hold(1.2, 0.4, '0 -1.5')
     scene.gaze.at(0, '0.5 0.5')
-    return sprite(scene, 1.2, blinkTracks(m), { hand: PENCIL, front: SHEET + flipbook(SHEET_LINES, 0.4) })
+    scene.gaze.hold(1.2, 0.6, '0 -0.5')
+    return sprite(scene, 2.4, blinkTracks(m), { hand: PENCIL, front: SHEET + flipbook(SHEET_LINES, 0.4) })
   }
   if (act === 'type') {
     // Tapping at a tiny keyboard, one key lighting up per tap.
     const scene = new Scene('half')
+    // Both hands on the keys, out of step.
     for (let i = 0; i < 6; i++) scene.armR.at(i * 0.15, i % 2 ? '0 0' : '0 1')
+    for (let i = 0; i < 6; i++) scene.armL.at(i * 0.15, i % 2 ? '0 1' : '0 0')
     scene.gaze.at(0, '0.5 0.5')
     return sprite(scene, 0.9, blinkTracks(m), { front: KEYBOARD + flipbook(KEY_FLASHES, 0.3) })
   }
   if (act === 'web') {
-    // Holding up a spinning globe.
+    // Holding up a spinning globe, giving it a spin with the other hand.
     const scene = new Scene('wide', '0 -1')
+    for (let i = 0; i < 3; i++) scene.armL.hold(0.4 + i * 0.25, 0.12, '0 -2')
+    scene.armR.hold(1.6, 0.4, '0 -1.5')
     scene.gaze.at(0, '0.5 -0.5')
-    return sprite(scene, 1.2, blinkTracks(m), { hand: GLOBE + flipbook(GLOBE_LAND, 0.4) })
+    scene.gaze.hold(1.6, 0.6, '0.5 0')
+    return sprite(scene, 2.4, blinkTracks(m), { hand: GLOBE + flipbook(GLOBE_LAND, 0.4) })
   }
   if (act === 'clone') {
     // A mini Claude hops beside it: a subagent at work.
@@ -877,30 +930,53 @@ function toolScene(m: Mood, act: Activity): string {
     scene.gaze.at(0, '0.5 0')
     const hop = new Track('0 0')
     hop.at(0.3, '0 -1')
+    // Cheering it on, arms pumping in time with its hops.
+    scene.armL.at(0.3, '0 -1.5')
+    scene.armR.at(0.3, '0 -1.5')
     return sprite(scene, 0.6, null, { front: hop.wrap(CLONE, 0.6) })
   }
   if (act === 'rocket') {
-    // Shipping: a rocket lifts off, the pet watches it go.
+    // Shipping: a crouch for the countdown, then a cheering jump as the rocket lifts off.
     const scene = new Scene('wide')
-    scene.gaze.at(0, '0.5 -0.5')
+    scene.gaze.at(0, '0.5 0')
+    scene.pose.at(0, '0 0.5')
+    scene.armL.at(0, '0 0.5')
+    scene.armR.at(0, '0 0.5')
     const lift = new Track('0 0')
     lift.at(0.6, '0 -1')
     lift.at(1.2, '0 -2')
+    scene.gaze.at(0.6, '0.5 -0.5')
+    scene.hop(0.6)
+    scene.armL.at(0.6, '0 -2')
+    scene.armR.at(0.6, '0 -2')
+    for (let i = 0; i < 4; i++) scene.armL.at(1.1 + i * 0.15, i % 2 ? '0 -2' : '0 -1.5')
+    for (let i = 0; i < 4; i++) scene.armR.at(1.1 + i * 0.15, i % 2 ? '0 -1.5' : '0 -2')
+    scene.emote({ eye: 'happy' }, 1.1, 0.7)
     return sprite(scene, 1.8, blinkTracks(m), { front: lift.wrap(ROCKET + flipbook(FLAMES, 0.15), 1.8) })
   }
   if (act === 'broom') {
     // Cleaning up: sweeping, dust puffing.
     const scene = new Scene('squint')
     for (let i = 0; i < 4; i++) scene.armR.at(i * 0.3, i % 2 ? '0 0' : '0 0.5')
+    // The other hand sweeps too, a step behind; the body sways with the strokes.
+    for (let i = 0; i < 4; i++) scene.armL.at(i * 0.3, i % 2 ? '0 0.5' : '0 0')
+    scene.pose.hold(0, 0.3, '0.5 0')
     scene.gaze.at(0, '0.5 0.5')
-    return sprite(scene, 1.2, null, { hand: BROOM, front: flipbook(DUST, 0.3) })
+    return sprite(scene, 1.2, blinkTracks(m), { hand: BROOM, front: flipbook(DUST, 0.3) })
   }
   if (act === 'test' || act === 'pass' || act === 'fail') {
     // Tests: the tube bubbles while they run, then shows green or red.
     const liquid = act === 'pass' ? LAND : act === 'fail' ? RED : SPARKLE
     const scene = new Scene(act === 'pass' ? 'happy' : act === 'fail' ? 'squint' : 'wide', '0 -1')
     scene.gaze.at(0, '0.5 -0.5')
-    if (act === 'test') return sprite(scene, 1.2, blinkTracks(m), { hand: tube(liquid) + flipbook(BUBBLES, 0.3) })
+    if (act === 'test') {
+      // Swirling the tube and holding it up to the light, the other hand on the hip.
+      for (let i = 0; i < 6; i++) scene.armR.at(i * 0.2, i % 2 ? '0 -1' : '0 -1.5')
+      scene.armR.hold(1.2, 0.8, '0 -2')
+      scene.armL.at(0, '0 0')
+      scene.gaze.hold(1.2, 0.8, '0.5 -1')
+      return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + flipbook(BUBBLES, 0.3) })
+    }
     if (act === 'pass') {
       // Green: the tube pumps high twice, then swirls while it bubbles; a hop, sparkles twinkling.
       for (let i = 0; i < 2; i++) scene.armR.hold(i * 0.6, 0.3, '0 -2.5')
@@ -909,22 +985,32 @@ function toolScene(m: Mood, act: Activity): string {
       const twinkle = flipbook([glyph('✦', 21, 0, SPARKLE, 4), glyph('✦', 20, -2, SPARKLE, 3), ''], 0.4)
       return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + flipbook(BUBBLES, 0.3) + twinkle })
     }
-    // Red: a head shake at the tube, the "!" flashing, a bead of sweat.
+    // Red: a head shake at the tube, the "!" flashing, a bead of sweat, a hand to the head.
     for (let i = 0; i < 4; i++) scene.pose.at(i * 0.12, i % 2 ? '0.5 0' : '-0.5 0')
     scene.pose.at(0.48, '0 0')
+    scene.armR.at(0.6, '0 0')
+    scene.armL.hold(0.6, 1.2, '0 -2')
     scene.sweat(1)
     return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + flipbook([glyph('!', 21, 1, RED, 4), ''], 0.4) })
   }
   if (act === 'todo') {
-    // Ticking items off a clipboard.
+    // Ticking items off a clipboard: a tick with the other hand per item, a nod for each.
     const scene = new Scene('open', '0 -1')
     scene.gaze.at(0, '0.5 0')
+    for (let i = 0; i < 3; i++) scene.armL.hold(i * 0.6, 0.2, '0 -2')
+    for (let i = 0; i < 3; i++) scene.pose.hold(i * 0.6 + 0.2, 0.15, '0 0.5')
     return sprite(scene, 1.8, blinkTracks(m), { hand: CLIPBOARD + flipbook(CHECKS, 0.6) })
   }
   // Thinking, two ways: pondering under a thought bubble, or headphones on.
   if (pick([true, false])) {
     const scene = new Scene(BASE_EYE[m])
     scene.gaze.at(0, '-0.5 -0.5')
+    // A hand to the chin, tapping, then a lean as the idea forms.
+    scene.armL.at(0, '0 -1.5')
+    for (let i = 0; i < 4; i++) scene.armL.at(0.3 + i * 0.25, i % 2 ? '0 -1.5' : '0 -2')
+    scene.armL.at(1.4, '0 0')
+    scene.armR.hold(1.4, 0.6, '0 -2')
+    scene.pose.hold(1.4, 1.2, '0.5 0')
     const dots = BUBBLE_DOTS.map((dot, i) => {
       const vis = new Track('0', 'opacity')
       vis.at(0.4 + i * 0.4, '1')
@@ -940,6 +1026,14 @@ function toolScene(m: Mood, act: Activity): string {
   }
   const scene = new Scene('happy')
   scene.pose.at(0.8, '0 0.5')
+  // Bopping both arms to the beat.
+  scene.armL.at(0.4, '0 -1')
+  scene.armL.at(0.8, '0 0')
+  scene.armL.at(1.2, '0 -1')
+  scene.armR.at(0, '0 -1')
+  scene.armR.at(0.4, '0 0')
+  scene.armR.at(0.8, '0 -1')
+  scene.armR.at(1.2, '0 0')
   const note = new Track('0', 'opacity')
   note.hold(0, 1.2, '1')
   return sprite(scene, 1.6, null, {
