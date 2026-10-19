@@ -781,7 +781,14 @@ function variantScene(m: Mood, act: Activity): string | undefined {
           : act === 'fail'
             ? trafficLight(RED, LIGHT_OFF, LIGHT_OFF)
             : flipbook([trafficLight(LIGHT_OFF, SPARKLE, LIGHT_OFF), trafficLight(LIGHT_OFF, LIGHT_OFF, LIGHT_OFF)], 0.4)
-      return sprite(scene, 0.8, act === 'test' ? blinkTracks(m) : null, { front: light })
+      if (act === 'test') return sprite(scene, 0.8, blinkTracks(m), { front: light })
+      // The result: a hop for green, a head shake for red, the lamp flashing.
+      if (act === 'pass') scene.hop(0.8)
+      else {
+        for (let i = 0; i < 4; i++) scene.pose.at(0.8 + i * 0.12, i % 2 ? '0.5 0' : '-0.5 0')
+        scene.pose.at(1.28, '0 0')
+      }
+      return sprite(scene, 2.4, blinkTracks(m), { front: flipbook([light, trafficLight(LIGHT_OFF, LIGHT_OFF, LIGHT_OFF), light, light, light, light], 0.4) })
     }
     case 'clone': {
       // A mini clone pops out of a box.
@@ -893,8 +900,19 @@ function toolScene(m: Mood, act: Activity): string {
     const liquid = act === 'pass' ? LAND : act === 'fail' ? RED : SPARKLE
     const scene = new Scene(act === 'pass' ? 'happy' : act === 'fail' ? 'squint' : 'wide', '0 -1')
     scene.gaze.at(0, '0.5 -0.5')
-    const extra = act === 'test' ? flipbook(BUBBLES, 0.3) : act === 'pass' ? glyph('✦', 21, 0, SPARKLE, 4) : glyph('!', 21, 1, RED, 4)
-    return sprite(scene, 1.2, act === 'test' ? blinkTracks(m) : null, { hand: tube(liquid) + extra })
+    if (act === 'test') return sprite(scene, 1.2, blinkTracks(m), { hand: tube(liquid) + flipbook(BUBBLES, 0.3) })
+    if (act === 'pass') {
+      // Green: the tube goes up twice, sparkles twinkle, a little hop.
+      for (let i = 0; i < 2; i++) scene.armR.hold(i * 0.5, 0.25, '0 -2')
+      scene.hop(1.4)
+      const twinkle = flipbook([glyph('✦', 21, 0, SPARKLE, 4), glyph('✦', 20, -2, SPARKLE, 3), ''], 0.4)
+      return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + twinkle })
+    }
+    // Red: a head shake at the tube, the "!" flashing, a bead of sweat.
+    for (let i = 0; i < 4; i++) scene.pose.at(i * 0.12, i % 2 ? '0.5 0' : '-0.5 0')
+    scene.pose.at(0.48, '0 0')
+    scene.sweat(1)
+    return sprite(scene, 2.4, blinkTracks(m), { hand: tube(liquid) + flipbook([glyph('!', 21, 1, RED, 4), ''], 0.4) })
   }
   if (act === 'todo') {
     // Ticking items off a clipboard.
@@ -1279,6 +1297,7 @@ function activityOf(tool: string): Activity {
 let revert: Timer | undefined
 let sleep: Timer | undefined
 let shownAt = 0 // when the current prop took over
+let contextWindow = 0 // tokens, from the last measurement
 
 async function react($: EngineInterface, next: Reaction, ms?: number) {
   revert?.cancel()
@@ -1305,6 +1324,7 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     const percent = e.context.percent
+    contextWindow = e.context.window
     const tier = tierOf(percent)
     if ((await read($, mood)) !== tier) await update($, mood, () => tier)
     if (percent !== undefined && (await read($, ctx)) !== percent) await update($, ctx, () => percent)
@@ -1350,7 +1370,15 @@ export const register: Register = on => {
 
   on('session.compact', async ($, e, next) => {
     const done = await next(e)
-    if (String(e.trigger) !== 'precompute' && !('skip' in done && done.skip)) await react($, 'relief', REACTION_MS)
+    if (String(e.trigger) !== 'precompute' && !('skip' in done && done.skip)) {
+      // The bar refills only on the next response; estimate it now from the summary's size.
+      if (e.agentId === undefined && contextWindow > 0 && 'tokensAfter' in done && done.tokensAfter !== undefined) {
+        const percent = Math.min(100, Math.round((done.tokensAfter / contextWindow) * 100))
+        await update($, ctx, () => percent)
+        await update($, mood, () => tierOf(percent))
+      }
+      await react($, 'relief', REACTION_MS)
+    }
 
     return done
   }).catch(($, e, next) => next(e))

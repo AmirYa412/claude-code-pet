@@ -140,3 +140,16 @@ test('a CTX or cost change redraws the line but keeps the pet animation as is', 
   expect(after).toBe(before)
   await ui.unmount()
 })
+
+test('a manual compact refills the CTX bar right away', async ($, on) => {
+  mock.clock(on)
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  const summary = [{ role: 'user', text: 'summary', toolUses: [], toolResults: [] }] as never
+  on('session.compact', () => ({ messages: summary, tokensAfter: 20000 }))
+  await $.session.measure(measure(85))
+  await $.session.compact({ trigger: 'manual', messages: summary })
+  const ui = await $.ui.mount(band('terminal'))
+  expect(await ui.find({ type: 'Text', text: /10%/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /✖ ✖/ })).toBeUndefined()
+  await ui.unmount()
+})
