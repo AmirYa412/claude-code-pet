@@ -262,6 +262,61 @@ const CONFETTI = [
 ]
 const BILL = px(0, 0, 2.5, 1.5, LAND) + px(1, 0.5, 0.5, 0.5, '#1E7A3C')
 
+// --- Variant props: a second animation per tool, picked at random ---
+
+// Wrench on a bolt; a spark on each twist.
+const WRENCH = px(16, 4.5, 1, 1, STEEL) + px(17, 3.5, 1, 1, STEEL) + px(17.5, 1.5, 0.5, 2, STEEL) + px(19, 1.5, 0.5, 2, STEEL) + px(17.5, 3, 2, 0.5, STEEL)
+const WRENCH_SPARK = [px(20, 1, 0.5, 0.5, SPARKLE), px(20.5, 0, 0.5, 0.5, SPARKLE) + px(20, 2, 0.5, 0.5, WHITE)]
+
+// Quill writing ink dots onto a sheet.
+const QUILL = px(16, 4.5, 0.5, 1, INK) + px(16.5, 3.5, 1, 1, WHITE) + px(17, 2.5, 1, 1, WHITE) + px(17.5, 1.5, 1, 1, PAPER) + px(17, 3, 0.5, 0.5, GREY)
+const INK_DOTS = [px(15.5, 9, 0.5, 0.5, INK), px(15.5, 9, 0.5, 0.5, INK) + px(16.5, 9, 0.5, 0.5, INK), px(15.5, 9, 0.5, 0.5, INK) + px(16.5, 9, 0.5, 0.5, INK) + px(17.5, 9, 1, 0.5, INK)]
+
+// Binoculars held up, scanning.
+const BINOCULARS = px(16.5, 1, 1.5, 1.5, INK) + px(18.5, 1, 1.5, 1.5, INK) + px(18, 1.25, 0.5, 0.75, INK) + px(17, 1.5, 0.5, 0.5, GLASS) + px(19, 1.5, 0.5, 0.5, GLASS) + px(16.5, 2.5, 0.5, 2, INK)
+
+// A satellite dish sending out signal waves.
+const DISH = px(17, 3, 3, 0.75, STEEL) + px(17.5, 3.75, 2, 0.5, STEEL_LIGHT) + px(18.5, 1.5, 0.5, 1.5, STEEL) + px(18.25, 4.25, 0.5, 3.5, GREY) + px(17.5, 7.75, 2, 0.5, GREY)
+const WAVES = [px(20, 1, 0.5, 0.5, OCEAN), px(20, 1, 0.5, 0.5, OCEAN) + px(21, 0, 0.5, 1, OCEAN), px(20, 1, 0.5, 0.5, OCEAN) + px(21, 0, 0.5, 1, OCEAN) + px(22, -1, 0.5, 1.5, OCEAN)]
+
+// A tiny laptop with green code scrolling.
+const LAPTOP = px(16, 4.5, 5, 3, STEEL) + px(16.5, 5, 4, 2, '#0B1F12') + px(15.5, 7.5, 6, 0.75, STEEL_LIGHT)
+const CODE = [px(17, 5.5, 2, 0.5, LAND) + px(17, 6.5, 3, 0.5, LAND), px(17, 5.5, 3, 0.5, LAND) + px(17.5, 6.5, 1.5, 0.5, LAND), px(17.5, 5.5, 1.5, 0.5, LAND) + px(17, 6.5, 2.5, 0.5, LAND)]
+
+// A hot-air balloon rising.
+const BALLOON = px(18, 1.5, 2.5, 0.5, RED) + px(17.5, 2, 3.5, 3, RED) + px(19, 2, 1, 3, SPARKLE) + px(18, 5, 2.5, 0.5, RED) + px(18.5, 5.5, 0.25, 1, GREY) + px(19.75, 5.5, 0.25, 1, GREY) + px(18.5, 6.5, 1.5, 1, WOOD)
+
+// A trash can: a paper ball tossed in, the lid flips.
+const CAN = px(18.5, 6.5, 2.5, 3.5, STEEL) + px(19, 7, 0.5, 2.5, STEEL_LIGHT) + px(20, 7, 0.5, 2.5, STEEL_LIGHT)
+const LID_SHUT = px(18.25, 6, 3, 0.5, STEEL_LIGHT)
+const LID_OPEN = px(18.25, 4, 0.5, 2, STEEL_LIGHT)
+const TOSS = [
+  LID_SHUT + px(16.5, 3, 1, 1, WHITE),
+  LID_SHUT + px(18, 1.5, 1, 1, WHITE),
+  LID_OPEN + px(19.25, 3.5, 1, 1, WHITE),
+  LID_OPEN,
+]
+
+// A traffic light: yellow blinking while tests run, then green or red.
+const LIGHT_OFF = '#3A3A3A'
+const trafficLight = (top: string, mid: string, low: string) =>
+  px(19.25, 6.5, 0.5, 3.5, GREY) + px(18.5, 1, 2, 5.5, INK) + px(19, 1.5, 1, 1, top) + px(19, 3, 1, 1, mid) + px(19, 4.5, 1, 1, low)
+
+// A box a mini clone pops out of.
+const BOX = px(17, 7, 5, 3, WOOD) + px(16.5, 6.5, 1.5, 0.5, TAN) + px(21, 6.5, 1.5, 0.5, TAN)
+
+// Sticky notes slapped on one by one.
+const NOTES = [
+  px(17, 0, 2, 2, SPARKLE) + px(17.5, 1, 1, 0.5, GREY),
+  px(17, 0, 2, 2, SPARKLE) + px(17.5, 1, 1, 0.5, GREY) + px(19.5, 1.5, 2, 2, PINK) + px(20, 2.5, 1, 0.5, GREY),
+  px(17, 0, 2, 2, SPARKLE) + px(17.5, 1, 1, 0.5, GREY) + px(19.5, 1.5, 2, 2, PINK) + px(20, 2.5, 1, 0.5, GREY) + px(17.5, 3, 2, 2, LAND) + px(18, 4, 1, 0.5, GREY),
+]
+
+// A crystal ball glowing on its stand.
+const crystal = (core: string) =>
+  px(18, 7.5, 3, 1, WOOD) + px(18.5, 8.5, 2, 0.5, WOOD) + px(18, 4, 3, 3.5, core) + px(17.5, 4.5, 4, 2.5, core) + px(18.5, 4.5, 0.5, 0.5, WHITE)
+const ORB = [crystal('#7E5BEF'), crystal('#B39DFF') + px(17, 3, 0.5, 0.5, SPARKLE) + px(21.5, 4, 0.5, 0.5, SPARKLE)]
+
 // A coffee cup with steam, held low.
 const CUP = px(16, 5, 2, 2, WHITE) + px(16.5, 5, 1, 0.5, COFFEE) + px(18, 5.5, 0.5, 1, WHITE)
 const STEAM = [px(16.5, 3.5, 0.5, 0.5, GREY) + px(17, 2.5, 0.5, 0.5, GREY), px(17, 3.5, 0.5, 0.5, GREY) + px(16.5, 2.5, 0.5, 0.5, GREY)]
@@ -658,8 +713,109 @@ function moodScene(m: Mood) {
   }
 }
 
-// A tool's prop in the right hand, animated on its own short loop.
+// The second animation for a tool, or undefined where it has none.
+function variantScene(m: Mood, act: Activity): string | undefined {
+  const Scene = moodScene(m)
+  switch (act) {
+    case 'build': {
+      // Twisting a wrench on a bolt.
+      const scene = new Scene('squint')
+      scene.armR.at(0.4, '0 -0.5')
+      scene.gaze.at(0, '0.5 -0.5')
+      return sprite(scene, 0.8, null, { hand: WRENCH + flipbook(WRENCH_SPARK, 0.4) })
+    }
+    case 'write': {
+      // A quill leaving ink on the sheet.
+      const scene = new Scene('small')
+      for (let i = 0; i < 6; i++) scene.armR.at(i * 0.2, i % 2 ? '0 -0.5' : '0 0')
+      scene.gaze.at(0, '0.5 0.5')
+      return sprite(scene, 1.2, blinkTracks(m), { hand: QUILL, front: SHEET + flipbook(INK_DOTS, 0.4) })
+    }
+    case 'look': {
+      // Binoculars up, scanning back and forth.
+      const scene = new Scene('wide', '0 -2')
+      scene.armR.at(0.8, '0 -2.5')
+      scene.gaze.at(0, '0.5 -0.5')
+      scene.gaze.at(0.8, '0 -0.5')
+      return sprite(scene, 1.6, blinkTracks(m), { hand: BINOCULARS })
+    }
+    case 'web': {
+      // A satellite dish pulsing signal.
+      const scene = new Scene('wide')
+      scene.gaze.at(0, '0.5 -0.5')
+      return sprite(scene, 1.2, blinkTracks(m), { front: DISH + flipbook(WAVES, 0.4) })
+    }
+    case 'type': {
+      // Tapping at a tiny laptop, code scrolling.
+      const scene = new Scene('half')
+      for (let i = 0; i < 6; i++) scene.armR.at(i * 0.15, i % 2 ? '0 0.5' : '0 1')
+      scene.gaze.at(0, '0.5 0.5')
+      return sprite(scene, 0.9, blinkTracks(m), { front: LAPTOP + flipbook(CODE, 0.3) })
+    }
+    case 'rocket': {
+      // A hot-air balloon floating up.
+      const scene = new Scene('wide')
+      scene.gaze.at(0, '0.5 -0.5')
+      const rise = new Track('0 1')
+      rise.at(0.8, '0 0')
+      rise.at(1.6, '0 -1')
+      return sprite(scene, 2.4, blinkTracks(m), { front: rise.wrap(BALLOON, 2.4) })
+    }
+    case 'broom': {
+      // Tossing a paper ball into the trash.
+      const scene = new Scene('squint')
+      scene.armR.at(0, '0 -1')
+      scene.armR.at(0.4, '0 0')
+      scene.gaze.at(0, '0.5 0.5')
+      return sprite(scene, 1.6, null, { front: CAN + flipbook(TOSS, 0.4) })
+    }
+    case 'test':
+    case 'pass':
+    case 'fail': {
+      // A traffic light: yellow blinks, then green or red.
+      const scene = new Scene(act === 'pass' ? 'happy' : act === 'fail' ? 'squint' : 'wide')
+      scene.gaze.at(0, '0.5 -0.5')
+      const light =
+        act === 'pass'
+          ? trafficLight(LIGHT_OFF, LIGHT_OFF, LAND)
+          : act === 'fail'
+            ? trafficLight(RED, LIGHT_OFF, LIGHT_OFF)
+            : flipbook([trafficLight(LIGHT_OFF, SPARKLE, LIGHT_OFF), trafficLight(LIGHT_OFF, LIGHT_OFF, LIGHT_OFF)], 0.4)
+      return sprite(scene, 0.8, act === 'test' ? blinkTracks(m) : null, { front: light })
+    }
+    case 'clone': {
+      // A mini clone pops out of a box.
+      const scene = new Scene('happy')
+      scene.gaze.at(0, '0.5 0')
+      const pop = new Track('0 2')
+      pop.at(0.4, '0 0')
+      pop.at(1.2, '0 -0.5')
+      pop.at(1.4, '0 0')
+      return sprite(scene, 2, null, { front: pop.wrap(CLONE, 2) + BOX })
+    }
+    case 'todo': {
+      // Slapping sticky notes up, one by one.
+      const scene = new Scene('open')
+      for (let i = 0; i < 3; i++) scene.armR.hold(i * 0.6, 0.2, '0 -2')
+      scene.gaze.at(0, '0.5 -0.5')
+      return sprite(scene, 1.8, blinkTracks(m), { front: flipbook(NOTES, 0.6) })
+    }
+    case 'magic': {
+      // Gazing into a glowing crystal ball.
+      const scene = new Scene('wide')
+      scene.gaze.at(0, '0.5 0.5')
+      return sprite(scene, 1.2, blinkTracks(m), { front: flipbook(ORB, 0.6) })
+    }
+    default:
+      return undefined
+  }
+}
+
+// A tool's prop in the right hand, animated on its own short loop; half the
+// time its variant instead.
 function toolScene(m: Mood, act: Activity): string {
+  const variant = Math.random() < 0.5 ? variantScene(m, act) : undefined
+  if (variant) return variant
   const Scene = moodScene(m)
   if (act === 'build') {
     // Hammering: a slow raise, a fast strike, a jolt on impact.
@@ -771,6 +927,22 @@ function toolScene(m: Mood, act: Activity): string {
     front: HEADPHONES,
     outside: note.wrap(glyph(pick(['♪', '♫']), 18.5, 1.5, SPARKLE, 4), 4.8),
   })
+}
+
+// The band redraws whenever anything on it changes (CTX %, cost, branch).
+// Rebuilding the pet then would hand the app a new random animation, and the
+// app reloads the pet's frame, which blinks it out for an instant. So the pet
+// is rebuilt only when what it shows changes.
+let petKey = ''
+let petCache = ''
+
+function stablePet(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string {
+  const key = `${m}|${r}|${act}|${isWorking}`
+  if (key !== petKey) {
+    petKey = key
+    petCache = petSvg(m, r, act, isWorking)
+  }
+  return petCache
 }
 
 function petSvg(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string {
@@ -1270,7 +1442,7 @@ export const register: Register = on => {
       <Box flexDirection="row" alignItems="center" gap={1} minWidth={0}>
         <Box flexShrink={0}>
           <Svg
-            source={petSvg(m, r, act, isWorking)}
+            source={stablePet(m, r, act, isWorking)}
             alt="Claude pet"
             width={VIEW.w * SCALE}
             height={VIEW.h * SCALE}

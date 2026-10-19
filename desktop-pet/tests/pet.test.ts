@@ -129,3 +129,14 @@ test('working animations wear the mood: panic keeps its crossed eyes on the job'
   expect(svg).toContain('stroke-width="0.9"')
   await ui.unmount()
 })
+
+test('a CTX or cost change redraws the line but keeps the pet animation as is', async ($, on) => {
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  const ui = await $.ui.mount(band('desktop'))
+  const before = String((await ui.find({ type: 'Svg' }))?.props.source)
+  await $.session.measure(measure(12))
+  await ui.redraw()
+  const after = String((await ui.find({ type: 'Svg' }))?.props.source)
+  expect(after).toBe(before)
+  await ui.unmount()
+})
