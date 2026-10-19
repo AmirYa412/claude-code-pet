@@ -1,8 +1,15 @@
-# 🐾 Claude Code CLI Pet
+# 🐾 Claude Code Pet
 
-> A pixel-art Claude that lives in your statusline and tells you — through sheer existential dread — when it's time to `/compact`.
+> A pixel-art Claude that tells you — through sheer existential dread — when it's time to `/compact`.
 
-## What is it?
+<p align="center">
+  <a href="#terminal"><b>⌨️ Terminal · Bash statusline</b></a>
+  &nbsp;·&nbsp;
+  <a href="#desktop"><b>🖥️ Claude Desktop app</b></a>
+</p>
+
+<a id="terminal"></a>
+## ⌨️ Terminal · Bash statusline
 
 A self-contained Bash script that prints one **5-cell mascot frame** every time Claude Code refreshes your statusline (about once a second). It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.
 
@@ -15,7 +22,7 @@ The animation isn't a fixed loop: every second gets a **weighted-random** frame,
   <a href="https://amirya412.github.io/claude-code-pet/">▶ Try the interactive demo</a>
 </h3>
 
-## Why it's nice
+### Why it's nice
 
 - **Zero forks, zero temp files.** Pure Bash builtins + a seeded integer hash.
 - **Never loops.** Weighted-random frames feel alive, not robotic.
@@ -24,7 +31,7 @@ The animation isn't a fixed loop: every second gets a **weighted-random** frame,
 - **One file.** Drop it in, point your statusline at it.
 - **Mostly idle.** It rests, blinks, and glances far more than it emotes.
 
-## Expressions
+### Expressions
 
 The pet has three moods, switched by context-window usage:
 
@@ -42,16 +49,16 @@ Here's the full cast:
 </p>
 
 
-## Install
+### Install
 
-### Requirements
+#### Requirements
 
 - **[Claude Code](https://code.claude.com/docs)** — Anthropic's CLI; see the docs to install.
 - **[`jq`](https://jqlang.github.io/jq/)** — **required**: the installer edits `settings.json` with it, and the statusline wrapper parses the context JSON on every redraw. Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu).
 - **Bash ≥ 3.2** — the pet and wrapper are Bash scripts (macOS/Linux have it; on **Windows** run the install in **Git Bash or WSL**, not PowerShell).
 - **A Modern Terminal** - For color support. 
 
-### One command
+#### One command
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AmirYa412/claude-code-pet/main/claude-pet-install.sh | bash
@@ -68,25 +75,32 @@ It drops the pet **and** the statusline wrapper into `~/.claude` and wires `sett
 >
 > A timestamped backup of `settings.json` is kept either way. Fresh installs (no existing statusline) go straight to the full line with no menu.
 
-## Claude Desktop pet
+<a id="desktop"></a>
+## 🖥️ Claude Desktop app
 
-[`desktop-pet/`](./desktop-pet) is a plugin, `pixel-pet`, that puts the pet above the prompt in the **Claude desktop app**, beside model · dir · branch · CTX bar · cost.
+[`pixel-pet`](./desktop-pet) is a Claude Code plugin that puts the pet above the prompt in the desktop app (Code tab), beside **model · dir · branch · CTX bar · cost**.
 
 <p align="center">
-  <img src="./assets/claude-desktop-pet.png" alt="pixel-pet above the prompt in the Claude desktop app" width="720">
+  <img src="./assets/claude-desktop-pet.png" alt="pixel-pet above the prompt in the Claude desktop app" width="820">
 </p>
 
-- **Same three moods** as the statusline pet.
-- **Reacts to Claude**: greets your messages, thinks with headphones, holds a prop per tool (hammer, pencil, magnifier, globe...).
-- **Light**: animations run in the app's renderer; the plugin only redraws on events.
+<p align="center">
+  <img src="./assets/claude-desktop-pet-moods.gif" alt="Relaxed, exhausted and panic moods" width="820">
+</p>
+
+- **Same three moods**: relaxed, exhausted, panic — calm and mostly still when idle.
+- **Reacts to Claude**: greets your messages, then holds a prop per tool — 🔨 edit, ✏️ write, 🔍 read, 🌐 web, ⌨️ bash, 🚀 push, 🧹 cleanup, 🧪 tests (green/red), 📋 to-dos.
+- **Light**: animations run in the app's renderer; the plugin redraws only on events, never on a timer.
 
 ### Install
 
-Desktop app: **+** → **Plugins** → **Add marketplace** `AmirYa412/claude-code-pet` → add `pixel-pet`. Or in a terminal:
+**Desktop app**: **+** → **Plugins** → **Add marketplace** `AmirYa412/claude-code-pet` → add **pixel-pet**. Or from a terminal:
 
 ```bash
 claude plugin install pixel-pet --marketplace AmirYa412/claude-code-pet
 ```
+
+Update with `claude plugin update pixel-pet`. Runs in Claude Code only (not Cowork).
 
 ---
 
