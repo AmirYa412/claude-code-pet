@@ -1114,40 +1114,13 @@ function heardScene(m: Mood): string {
   }
 }
 
-// --- Terminal fallback: the repo's 5-cell face, redrawn on events only -------
+// --- What the pet is doing, in words: the SVG's alt text ---------------------
 
-const TEXT_EYES: Record<Eye, string> = {
-  open: '● ●', half: '◒ ◒', x: '✖ ✖', closed: '▬ ▬', happy: '^ ^', squint: '> <',
-  wide: '◉ ◉', small: '• •', heart: '♥ ♥', star: '★ ★', winkL: '▬ ●', winkR: '● ▬',
-}
-const TEXT_ACT: Record<Activity, { eyes: Eye; deco: string }> = {
-  idle: { eyes: 'happy', deco: '♪' },
-  think: { eyes: 'happy', deco: '♪' },
-  build: { eyes: 'squint', deco: '⚒' },
-  look: { eyes: 'wide', deco: '⌕' },
-  magic: { eyes: 'happy', deco: '✧' },
-  write: { eyes: 'small', deco: '✎' },
-  type: { eyes: 'half', deco: '⌨' },
-  web: { eyes: 'wide', deco: '◍' },
-  clone: { eyes: 'happy', deco: '❖' },
-  todo: { eyes: 'open', deco: '☑' },
-  rocket: { eyes: 'wide', deco: '↑' },
-  broom: { eyes: 'squint', deco: '⌇' },
-  test: { eyes: 'wide', deco: '⚗' },
-  pass: { eyes: 'happy', deco: '✔' },
-  fail: { eyes: 'squint', deco: '✘' },
-}
+const MOOD_NAMES = ['relaxed', 'exhausted', 'panic'] as const
 
-function textFace(m: Mood, r: Reaction, act: Activity, isWorking: boolean): { eyes: string; deco: string } {
-  if (r === 'sleepy') return { eyes: TEXT_EYES.closed, deco: 'z' }
-  if (r === 'done') return { eyes: TEXT_EYES.happy, deco: '✦' }
-  if (r === 'oops') return { eyes: TEXT_EYES.squint, deco: '°' }
-  if (r === 'heard') return { eyes: TEXT_EYES.wide, deco: '!' }
-  if (r === 'relief' || r === 'party') return { eyes: TEXT_EYES.happy, deco: '✦' }
-  if (r === 'money') return { eyes: TEXT_EYES.wide, deco: '$' }
-  if (r === 'phew') return { eyes: TEXT_EYES.half, deco: '°' }
-  if (isWorking) return { eyes: TEXT_EYES[TEXT_ACT[act].eyes], deco: TEXT_ACT[act].deco }
-  return { eyes: TEXT_EYES[BASE_EYE[m]], deco: ' ' }
+function petAlt(m: Mood, r: Reaction, act: Activity, isWorking: boolean): string {
+  const doing = r !== 'idle' ? r : isWorking ? act : 'idle'
+  return `Claude pet: ${MOOD_NAMES[m]}, ${doing}`
 }
 
 // --- Statusline fields ---------------------------------------------------------
@@ -1245,16 +1218,6 @@ function ctxBarSvg(percent: number, color: string): string {
     `<g clip-path="url(#r)"><rect width="${BAR_W}" height="${BAR_H}" fill="${TRACK}"/>` +
     `<rect width="${fill.toFixed(1)}" height="${BAR_H}" fill="${color}"/></g></svg>`
   )
-}
-
-// The terminal's bar: full blocks, eighths for the edge, full blocks again
-// (in the track color) for what is left, so every cell is the same height.
-function blockBar(percent: number, cells = 10): [string, string] {
-  const eighths = Math.round((Math.max(0, Math.min(100, percent)) / 100) * cells * 8)
-  const full = Math.floor(eighths / 8)
-  const part = eighths % 8
-  const edge = part ? ' ▏▎▍▌▋▊▉'[part]! : ''
-  return ['█'.repeat(full) + edge, '█'.repeat(cells - full - (part ? 1 : 0))]
 }
 
 // $0.42 · $12.30 · $140
@@ -1399,7 +1362,8 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.props.hasSurvey) return next(e)
+    // The terminal keeps its own statusline (the repo's bash pet): draw nothing there.
+    if (e.props.hasSurvey || e.surface === 'terminal') return next(e)
 
     const m = await read($, mood)
     const r = await read($, reaction)
@@ -1409,36 +1373,18 @@ export const register: Register = on => {
     const fields = await read($, info)
     // Working when the engine says so, or between a sent message and its turn's end.
     const isWorking = e.props.isWorking || act !== 'idle'
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Text, Svg } = $.ui.resolve(e)
 
-    // A bold pill between fields where the surface draws SVG; a heavy bar elsewhere.
-    let sep = <Text color={SEP_TEXT} bold wrap="truncate-end"> ┃ </Text>
-    if (e.surface !== 'terminal') {
-      const { Svg } = $.ui.resolve(e)
-      sep = (
-        <Box flexShrink={0}>
-          <Svg source={SEP_PILL} alt="|" width={15} height={16} />
-        </Box>
-      )
-    }
+    // A bold pill between fields.
+    const sep = (
+      <Box flexShrink={0}>
+        <Svg source={SEP_PILL} alt="|" width={15} height={16} />
+      </Box>
+    )
     const ctxColor = used === null ? GREEN : used >= 70 ? ALERT : used >= 41 ? YELLOW : GREEN
-    // The CTX bar: one even-height SVG bar where the surface draws SVG, else
-    // the same full-block glyph for filled and empty cells (equal heights).
-    let bar = null
-    if (used !== null) {
-      if (e.surface === 'terminal') {
-        const [filled, empty] = blockBar(used)
-        bar = (
-          <Text color={ctxColor}>
-            {filled}
-            <Text color={TRACK}>{empty}</Text>
-          </Text>
-        )
-      } else {
-        const { Svg } = $.ui.resolve(e)
-        bar = <Svg source={ctxBarSvg(used, ctxColor)} alt={`Context ${Math.round(used)}% used`} width={BAR_W} height={BAR_H} />
-      }
-    }
+    // The CTX bar: one even-height SVG bar.
+    const bar =
+      used === null ? null : <Svg source={ctxBarSvg(used, ctxColor)} alt={`Context ${Math.round(used)}% used`} width={BAR_W} height={BAR_H} />
     const line = (
       <Box flexDirection="row" flexWrap="nowrap" alignItems="center" flexShrink={1} minWidth={0} overflow="hidden">
         {fields?.model ? <Text color={MODEL_TEXT} bold wrap="truncate-end">{fields.model}</Text> : null}
@@ -1455,24 +1401,12 @@ export const register: Register = on => {
       </Box>
     )
 
-    if (e.surface === 'terminal') {
-      const face = textFace(m, r, act, isWorking)
-      return (
-        <Box flexDirection="row">
-          <Text backgroundColor={ORANGE} color={INK}> {face.eyes}</Text>
-          <Text color={SPARKLE}>{face.deco} </Text>
-          {line}
-        </Box>
-      )
-    }
-
-    const { Svg } = $.ui.resolve(e)
     return (
       <Box flexDirection="row" alignItems="center" gap={1} minWidth={0}>
         <Box flexShrink={0}>
           <Svg
             source={stablePet(m, r, act, isWorking)}
-            alt="Claude pet"
+            alt={petAlt(m, r, act, isWorking)}
             width={VIEW.w * SCALE}
             height={VIEW.h * SCALE}
             isInteractive

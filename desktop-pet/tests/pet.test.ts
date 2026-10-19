@@ -1,4 +1,4 @@
-import type { RenderPropsOf } from 'claude-code'
+import type { RenderElement, RenderPropsOf } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 const props = (isWorking = false) =>
@@ -12,6 +12,10 @@ const props = (isWorking = false) =>
 const band = (surface: 'terminal' | 'desktop', isWorking = false) =>
   ({ plugin: 'pixel-pet', surface, component: 'AbovePrompt', props: props(isWorking) }) as const
 
+// What the pet shows, from the SVG's alt text: "Claude pet: relaxed, build".
+const petAlt = async (ui: { find: (q: { type: 'Svg' }) => Promise<{ props: { alt?: unknown } } | undefined> }) =>
+  String((await ui.find({ type: 'Svg' }))?.props.alt)
+
 const measure = (percent: number) => ({ context: { window: 200000, tokens: percent * 2000, percent }, rateLimits: [], changed: [] })
 
 test('desktop draws one animated SVG pet, no timer ticks', async $ => {
@@ -23,41 +27,49 @@ test('desktop draws one animated SVG pet, no timer ticks', async $ => {
   await ui.unmount()
 })
 
-test('terminal draws the text face and it follows the context tier', async ($, on) => {
+test('the terminal draws nothing: its own statusline stays alone there', async ($, on) => {
   on('session.measure', ($, e) => ({ changed: e.changed }))
-  const ui = await $.ui.mount(band('terminal'))
-  expect(await ui.find({ type: 'Text', text: /● ●/ })).toBeDefined()
-
+  on('ui.render', ($, e) => h($.ui.resolve(e).Box, {}) as RenderElement)
   await $.session.measure(measure(55))
-  expect(await ui.find({ type: 'Text', text: /◒ ◒/ })).toBeDefined()
-
-  await $.session.measure(measure(85))
-  expect(await ui.find({ type: 'Text', text: /✖ ✖/ })).toBeDefined()
+  const ui = await $.ui.mount(band('terminal'))
+  expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /CTX/ })).toBeUndefined()
   await ui.unmount()
 })
 
-test('the statusline fields sit beside the pet on every surface', async ($, on) => {
+test('the pet follows the context tier', async ($, on) => {
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  const ui = await $.ui.mount(band('desktop'))
+  expect(await petAlt(ui)).toContain('relaxed')
+
+  await $.session.measure(measure(55))
+  expect(await petAlt(ui)).toContain('exhausted')
+
+  await $.session.measure(measure(85))
+  expect(await petAlt(ui)).toContain('panic')
+  await ui.unmount()
+})
+
+test('the statusline fields sit beside the pet', async ($, on) => {
   on('session.measure', ($, e) => ({ changed: e.changed }))
   await $.session.measure(measure(55))
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount(band(surface))
-    expect(await ui.find({ type: 'Text', text: /55%/ })).toBeDefined()
-    await ui.unmount()
-  }
+  const ui = await $.ui.mount(band('desktop'))
+  expect(await ui.find({ type: 'Text', text: /55%/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('a tool call hands the pet its prop', async ($, on) => {
   mock.clock(on)
   on('tool.call', () => ({ result: 'ok' }))
   await $.tool.call({ tool: 'Edit', file_path: '/tmp/x', old_string: 'a', new_string: 'b' })
-  const ui = await $.ui.mount(band('terminal', true))
-  expect(await ui.find({ type: 'Text', text: /⚒/ })).toBeDefined()
+  const ui = await $.ui.mount(band('desktop', true))
+  expect(await petAlt(ui)).toMatch(/build$/)
   await ui.unmount()
 })
 
-test('working shows the headphones note on the terminal', async $ => {
-  const ui = await $.ui.mount(band('terminal', true))
-  expect(await ui.find({ type: 'Text', text: /♪/ })).toBeDefined()
+test('working with no tool yet means thinking', async $ => {
+  const ui = await $.ui.mount(band('desktop', true))
+  expect(await petAlt(ui)).toMatch(/idle$/)
   await ui.unmount()
 })
 
@@ -65,11 +77,11 @@ test('a reaction wears off: the lightbulb goes back to the working face', async 
   const clock = mock.clock(on)
   on('prompt.submit', ($, e) => ({ text: e.text }))
   await $.prompt.submit({ text: 'hi' } as Parameters<typeof $.prompt.submit>[0])
-  const ui = await $.ui.mount(band('terminal', true))
-  expect(await ui.find({ type: 'Text', text: /!/ })).toBeDefined()
+  const ui = await $.ui.mount(band('desktop', true))
+  expect(await petAlt(ui)).toMatch(/heard$/)
 
   await clock.advance(3000)
-  expect(await ui.find({ type: 'Text', text: /♪/ })).toBeDefined()
+  expect(await petAlt(ui)).toMatch(/think$/)
   await ui.unmount()
 })
 
@@ -78,8 +90,8 @@ test('the pet knows it is working even when the band does not say so', async ($,
   on('prompt.submit', ($, e) => ({ text: e.text }))
   await $.prompt.submit({ text: 'hi' } as Parameters<typeof $.prompt.submit>[0])
   await clock.advance(3500)
-  const ui = await $.ui.mount(band('terminal', false))
-  expect(await ui.find({ type: 'Text', text: /♪/ })).toBeDefined()
+  const ui = await $.ui.mount(band('desktop', false))
+  expect(await petAlt(ui)).toMatch(/think$/)
   await ui.unmount()
 })
 
@@ -90,21 +102,21 @@ test('a prop holds for a while before the next tool takes over', async ($, on) =
   const bash = { tool: 'Bash', command: 'ls' } as Parameters<typeof $.tool.call>[0]
   await $.tool.call(edit)
   await $.tool.call(bash)
-  const ui = await $.ui.mount(band('terminal', true))
-  expect(await ui.find({ type: 'Text', text: /⚒/ })).toBeDefined()
+  const ui = await $.ui.mount(band('desktop', true))
+  expect(await petAlt(ui)).toMatch(/build$/)
 
   await clock.advance(9000)
   await $.tool.call(bash)
-  expect(await ui.find({ type: 'Text', text: /⌨/ })).toBeDefined()
+  expect(await petAlt(ui)).toMatch(/type$/)
   await ui.unmount()
 })
 
 test('shell commands pick their own props: tests show their result, pushes launch', async ($, on) => {
   mock.clock(on)
   on('tool.call', () => ({ result: 'ok' }))
-  const ui = await $.ui.mount(band('terminal', true))
+  const ui = await $.ui.mount(band('desktop', true))
   await $.tool.call({ tool: 'Bash', command: 'npm test' } as Parameters<typeof $.tool.call>[0])
-  expect(await ui.find({ type: 'Text', text: /✔/ })).toBeDefined()
+  expect(await petAlt(ui)).toMatch(/pass$/)
   await ui.unmount()
 })
 
@@ -113,8 +125,8 @@ test('passing a cost milestone gets a reaction', async ($, on) => {
   const at = (usd: number) => ({ context: { window: 200000 }, rateLimits: [], changed: [], cost: { usd } })
   await $.session.measure(at(4.5))
   await $.session.measure(at(5.2))
-  const ui = await $.ui.mount(band('terminal'))
-  expect(await ui.find({ type: 'Text', text: /\$/ })).toBeDefined()
+  const ui = await $.ui.mount(band('desktop'))
+  expect(await petAlt(ui)).toMatch(/money$/)
   await ui.unmount()
 })
 
@@ -148,8 +160,8 @@ test('a manual compact refills the CTX bar right away', async ($, on) => {
   on('session.compact', () => ({ messages: summary, tokensAfter: 20000 }))
   await $.session.measure(measure(85))
   await $.session.compact({ trigger: 'manual', messages: summary })
-  const ui = await $.ui.mount(band('terminal'))
+  const ui = await $.ui.mount(band('desktop'))
   expect(await ui.find({ type: 'Text', text: /10%/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /✖ ✖/ })).toBeUndefined()
+  expect(await petAlt(ui)).toContain('relaxed')
   await ui.unmount()
 })
