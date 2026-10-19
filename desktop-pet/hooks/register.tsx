@@ -582,7 +582,7 @@ function weighted<T>(table: [number, T][]): T {
 function idleScene(m: Mood): [Scene, number] {
   const scene = new Scene(BASE_EYE[m], m === 1 ? '0 1' : '0 0')
   const every = [12, 9, 8][m]!
-  const rest = () => between(2.5, 5)
+  const rest = () => between(1.5, 3)
   const beats: [number, (t: number) => number][] = [
     [11, rest],
     [4, t => scene.glance(t)],
@@ -629,17 +629,22 @@ function idleScene(m: Mood): [Scene, number] {
 function blinkTracks(m: Mood): { open: Track; shut: Track; cycle: number } {
   const open = new Track('1', 'opacity')
   const shut = new Track('0', 'opacity')
-  const cycle = 31
-  const count = m === 2 ? 5 : 3 // ~10s heartbeat calm, ~6s rattled
-  const bucket = cycle / count
-  for (let i = 0; i < count; i++) {
-    const t = i * bucket + rand(bucket - 0.5)
-    for (const at of [t, t + 0.24]) {
-      // double blink: shut · open · shut
+  // A blink every 2–3.5s calm, 1.2–2.2s rattled, so no stare runs past ~3.5s;
+  // one in four is a double blink. The loop ends one gap after the last blink,
+  // so its seam is no longer than any other gap.
+  const gap = () => (m === 2 ? between(1.2, 2.2) : between(2, 3.5))
+  const first = between(0.3, 0.8)
+  let last = first
+  for (let t = first; t < 28; t += gap()) {
+    last = t
+    const double = Math.random() < 0.25
+    for (const at of double ? [t, t + 0.24] : [t]) {
+      // shut · open · shut
       open.hold(at, 0.12, '0')
       shut.hold(at, 0.12, '1')
     }
   }
+  const cycle = last + gap() - first
   return { open, shut, cycle }
 }
 
