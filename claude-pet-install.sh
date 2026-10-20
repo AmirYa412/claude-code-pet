@@ -268,12 +268,12 @@ exit 1
 CLAUDE_PET_EOF
 chmod +x "$SC/claude-pet"
 
-# --- 2. statusline wrapper (pet + model + cwd + branch + ctx%) ---
+# --- 2. statusline wrapper (pet + model + cwd + branch + ctx bar + cost) ---
 cat > "$SC/claude-pet-statusline.sh" <<'CLAUDE_PET_WRAPPER_EOF'
 #!/usr/bin/env bash
 # Claude Code statusLine script.
 # Always renders the animated pet (mood from context %), then EITHER:
-#   - built-in line: pet | model | cwd | git branch | context %, or
+#   - built-in line: pet ┃ model ┃ cwd ┃ git branch ┃ CTX bar % ┃ cost, or
 #   - prepend mode:  pet + your own statusLine output — used when the installer
 #     saved your previous command to scripts/.claude-pet-host-command.
 # Either way the pet keeps all 3 moods, since mood is computed here.
@@ -289,12 +289,14 @@ input=$(cat)
     IFS= read -r used
     IFS= read -r model
     IFS= read -r session_id
+    IFS= read -r cost
     IFS= read -r now
 } < <(jq -r '
     .cwd // .workspace.current_dir // "",
     .context_window.used_percentage // "",
     .model.display_name // (.model.id | ltrimstr("claude-")) // "",
     .session_id // "",
+    .cost.total_cost_usd // "",
     (now | floor)
 ' <<< "$input")
 case "$now" in ''|*[!0-9]*)
@@ -368,29 +370,39 @@ if [ -n "$host_cmd" ]; then
 fi
 
 # --- Built-in line (complete mode) -----------------------------------------
+# The desktop pet's warm Claude palette: a terracotta model, warm off-white
+# path, sand branch, warm-grey separators and cost; CTX keeps green/yellow/red.
 # Truecolor (24-bit) when the terminal advertises it — explicit RGB keeps the
-# colors vivid regardless of theme (Warp and similar map the 16 ANSI slots to
-# a muted palette). 256-color fallback otherwise (e.g. stock Terminal.app),
-# matching the pet's own palette switch.
+# colors true regardless of theme (Warp and similar map the 16 ANSI slots to
+# a muted palette). Nearest 256-color fallback otherwise (e.g. stock
+# Terminal.app), matching the pet's own palette switch.
 RESET='\033[0m'
-DIM='\033[2m'
+BOLD='\033[1m'
 case "${COLORTERM:-}" in
     *truecolor*|*24bit*)
-        CYAN='\033[38;2;38;215;225m'
+        MODEL_C='\033[38;2;232;145;111m'
+        DIR_C='\033[38;2;214;207;199m'
+        BRANCH_C='\033[38;2;230;199;156m'
+        SEP_C='\033[38;2;140;132;124m'
+        COST_C='\033[38;2;156;148;140m'
+        TRACK_C='\033[38;2;74;74;74m'
         YELLOW='\033[38;2;255;200;60m'
         GREEN='\033[38;2;80;220;100m'
         RED='\033[38;2;255;85;85m'
-        BLUE='\033[38;2;90;160;255m'
         ;;
     *)
-        CYAN='\033[38;5;44m'
+        MODEL_C='\033[38;5;173m'
+        DIR_C='\033[38;5;188m'
+        BRANCH_C='\033[38;5;180m'
+        SEP_C='\033[38;5;244m'
+        COST_C='\033[38;5;246m'
+        TRACK_C='\033[38;5;238m'
         YELLOW='\033[38;5;220m'
         GREEN='\033[38;5;77m'
         RED='\033[38;5;203m'
-        BLUE='\033[38;5;75m'
         ;;
 esac
-SEP="${DIM} | ${RESET}"
+SEP="${SEP_C}${BOLD} ┃ ${RESET}"
 
 # Build the display path. Collapse git-worktree paths
 # (<repo>/.claude/worktrees/<name>/<subpath>) into "🌲  <repo>/<subpath>" — the
@@ -451,6 +463,36 @@ if [ -n "$used_int" ]; then
     fi
 fi
 
+# The CTX bar: 10 cells of full blocks, an eighth-block for the edge, and full
+# blocks again (in the track color) for what's left, so every cell is the
+# same height. Pure builtins.
+ctx_bar=""
+if [ -n "$used_int" ]; then
+    _e=$(( (used_int > 100 ? 100 : used_int) * 80 / 100 ))   # eighths of 10 cells
+    _full=$(( _e / 8 )) _part=$(( _e % 8 ))
+    _edges=('' '▏' '▎' '▍' '▌' '▋' '▊' '▉')   # an array: substrings of multibyte text break on bash 3.2
+    printf -v _fill '%*s' "$_full" ''
+    _fill="${_fill// /█}"
+    _fill="${_fill}${_edges[$_part]}"
+    printf -v _rest '%*s' $(( 10 - _full - (_part > 0 ? 1 : 0) )) ''
+    _rest="${_rest// /█}"
+    ctx_bar="${ctx_color}${_fill}${TRACK_C}${_rest}${RESET}"
+fi
+
+# Session cost: $0.42 · $12.30 · $140. Split on the dot instead of printf '%.2f'
+# (locale-proof, fork-free); cents are truncated, not rounded.
+cost_text=""
+case "$cost" in
+    ''|*[!0-9.]*) ;;
+    *)
+        _dollars="${cost%%.*}"; _dollars="${_dollars:-0}"
+        _cents=""
+        [ "$cost" != "${cost#*.}" ] && _cents="${cost#*.}"
+        _cents="${_cents}00"
+        if [ "$_dollars" -ge 100 ]; then cost_text="\$${_dollars}"; else cost_text="\$${_dollars}.${_cents:0:2}"; fi
+        ;;
+esac
+
 # Build result
 result=""
 
@@ -460,21 +502,25 @@ if [ -n "$pet" ]; then
 fi
 
 if [ -n "$model" ]; then
-    result="${result} ${YELLOW}${model}${RESET}"
+    result="${result} ${MODEL_C}${BOLD}${model}${RESET}"
 fi
 
 if [ -n "$result" ]; then
-    result="${result}${SEP}${CYAN}${cwd_display}${RESET}"
+    result="${result}${SEP}${DIR_C}${cwd_display}${RESET}"
 else
-    result="${CYAN}${cwd_display}${RESET}"
+    result="${DIR_C}${cwd_display}${RESET}"
 fi
 
 if [ -n "$branch" ]; then
-    result="${result}${SEP}${BLUE}${branch}${RESET}"
+    result="${result}${SEP}${BRANCH_C}${branch}${RESET}"
 fi
 
 if [ -n "$used_int" ]; then
-    result="${result}${SEP}${ctx_color}ctx: ${used_int}%${RESET}"
+    result="${result}${SEP}${ctx_color}${BOLD}CTX${RESET} ${ctx_bar} ${ctx_color}${BOLD}${used_int}%${RESET}"
+fi
+
+if [ -n "$cost_text" ]; then
+    result="${result}${SEP}${COST_C}${cost_text}${RESET}"
 fi
 
 printf '%b\n' "$result"
@@ -490,7 +536,7 @@ ok "wrapper ${C_DIM}→ $SC/claude-pet-statusline.sh${C_RS}"
 # Written for Bash 3.2 (macOS): integer read timeouts only, no `mapfile`, etc.
 menu_choice() {
     local existing="$1" sel=0 key rest i first=1
-    local opts=("Replace it with the full pet line  (pet · model · dir · branch · ctx)"
+    local opts=("Replace it with the full pet line  (pet · model · dir · branch · CTX bar · cost)"
                 "Keep my statusline — just add the pet in front")
     local n=${#opts[@]}
     # Restore the cursor on any exit/interrupt while the menu is open.
