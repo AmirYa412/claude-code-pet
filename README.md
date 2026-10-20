@@ -2,52 +2,48 @@
 
 > A pixel-art Claude that tells you — through sheer existential dread — when it's time to `/compact`.
 
+A tiny orange Claude that lives next to your prompt, blinks, glances and emotes, and gets more and more stressed as your context window fills up. It comes in two flavors:
+
+- **[⌨️ Terminal](#terminal)** — a Bash statusline for Claude Code in your terminal.
+- **[🖥️ Claude Desktop app](#desktop)** — a plugin that puts the pet above the prompt in the desktop app's Code tab, and also reacts to what Claude is doing.
+
+## 🎭 Moods
+
+Both versions share the same three moods, switched by context-window usage:
+
+| Mood | Context | Look |
+| :- | :- | :- |
+| 🙂 **Relaxed** | `0–40%` | Happy and playful, emotes about every 12 s |
+| 😩 **Exhausted** | `41–69%` | Heavy eyelids, emotes more often — your cue to compact |
+| 💀 **Panic** | `70%+` | `✖ ✖` eyes, blinking fast and rattled |
+
+> [!WARNING]
+> Past **70%** the pet panics: `/compact` before auto-compact kicks in around 95%.
+
 <p align="center">
-  <a href="#terminal"><b>⌨️ Terminal · Bash statusline</b></a>
-  &nbsp;·&nbsp;
-  <a href="#desktop"><b>🖥️ Claude Desktop app</b></a>
+  <img src="./assets/claude-desktop-pet-moods.gif" alt="Relaxed, exhausted and panic moods" width="820">
 </p>
 
 <a id="terminal"></a>
 ## ⌨️ Terminal · Bash statusline
 
-A self-contained Bash script that prints one **5-cell mascot frame** every time Claude Code refreshes your statusline (about once a second). It blinks, glances, and emotes — a pixel-art Claude with a chunky orange body — and reacts to how full your context window is.
+One self-contained Bash script prints a **5-cell mascot frame** each time Claude Code refreshes your statusline (about once a second).
 
-The animation isn't a fixed loop: every second gets a **weighted-random** frame, so the pet feels alive rather than metronomic. Blinks play as a quick **double blink**, emotes never fire back-to-back, and its gaze settles to the side for a few seconds at a time — a resting pose, not a flash.
 <p align="center">
-  <img src="./assets/claude-pet.gif" alt="claude-pet" width="720">
+  <img src="./assets/claude-pet.gif" alt="claude-pet in the terminal statusline" width="720">
 </p>
 
 <h3 align="center">
   <a href="https://amirya412.github.io/claude-code-pet/">▶ Try the interactive demo</a>
 </h3>
 
-### Why it's nice
-
-- **Zero forks, zero temp files.** Pure Bash builtins + a seeded integer hash.
-- **Never loops.** Weighted-random frames feel alive, not robotic.
-- **Context-aware.** Three tiers — relaxed (0–40%), exhausted (41–69%), panic (70%+) — a building nudge to `/compact`.
+- **Zero forks, zero temp files.** Pure Bash builtins and a seeded integer hash.
+- **Never loops.** Each second gets a weighted-random frame: double blinks, glances that linger, emotes that never repeat back to back.
 - **No jitter.** Every frame is exactly 5 terminal cells wide.
-- **One file.** Drop it in, point your statusline at it.
-- **Mostly idle.** It rests, blinks, and glances far more than it emotes.
-
-### Expressions
-
-The pet has three moods, switched by context-window usage:
-
-- 🙂 **Relaxed** (`0–40%`) — happy & playful. Emotes roughly every 12 seconds.
-- 😩 **Exhausted** (`41–69%`) — strained. Emotes more often (~every 9 s) — your cue to compact.
-- 💀 **Panic** (`70%+`) — `✖ ✖` eyes, blinking fast and rattled. Auto-compact is closing in.
-
-> [!WARNING]
-> Past **41%** the pet looks exhausted; past **70%** it flips to a panic `✖ ✖` stare — your signal to `/compact` before auto-compact kicks in around 95%.
-
-Here's the full cast:
 
 <p align="center">
-  <img src="./assets/claude-pet-faces.png" alt="claude-pet" width="720">
+  <img src="./assets/claude-pet-faces.png" alt="The terminal pet's faces" width="720">
 </p>
-
 
 ### Install
 
@@ -56,7 +52,7 @@ Here's the full cast:
 - **[Claude Code](https://code.claude.com/docs)** — Anthropic's CLI; see the docs to install.
 - **[`jq`](https://jqlang.github.io/jq/)** — **required**: the installer edits `settings.json` with it, and the statusline wrapper parses the context JSON on every redraw. Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu).
 - **Bash ≥ 3.2** — the pet and wrapper are Bash scripts (macOS/Linux have it; on **Windows** run the install in **Git Bash or WSL**, not PowerShell).
-- **A Modern Terminal** - For color support. 
+- **A modern terminal** — for color support.
 
 #### One command
 
@@ -78,18 +74,14 @@ It drops the pet **and** the statusline wrapper into `~/.claude` and wires `sett
 <a id="desktop"></a>
 ## 🖥️ Claude Desktop app
 
-[`pixel-pet`](./desktop-pet) is a Claude Code plugin that puts the pet above the prompt in the desktop app (Code tab), beside **model · dir · branch · CTX bar · cost**.
+[`pixel-pet`](./desktop-pet) is a Claude Code plugin that draws the pet above the prompt in the desktop app (Code tab), beside **model · dir · branch · CTX bar · cost**.
 
 <p align="center">
   <img src="./assets/claude-desktop-pet.png" alt="pixel-pet above the prompt in the Claude desktop app" width="820">
 </p>
 
-<p align="center">
-  <img src="./assets/claude-desktop-pet-moods.gif" alt="Relaxed, exhausted and panic moods" width="820">
-</p>
-
-- **Same three moods**: relaxed, exhausted, panic — calm and mostly still when idle.
-- **Reacts to Claude**: greets your messages, then holds a prop per tool — 🔨 edit, ✏️ write, 🔍 read, 🌐 web, ⌨️ bash, 🚀 push, 🧹 cleanup, 🧪 tests (green/red), 📋 to-dos.
+- **Reacts to Claude**: greets your messages, then works along with each tool, with two animations per tool picked at random. A few of them: 🔨 edit, ✏️ write, 🔍 read, 🌐 web, ⌨️ bash, 🚀 push, 🧹 cleanup, 🧪 tests (green or red).
+- **Live statusline**: CTX bar and session cost. The bar refills right after `/compact`.
 - **Light**: animations run in the app's renderer; the plugin redraws only on events, never on a timer.
 
 ### Install
@@ -100,8 +92,8 @@ It drops the pet **and** the statusline wrapper into `~/.claude` and wires `sett
 claude plugin install pixel-pet --marketplace AmirYa412/claude-code-pet
 ```
 
-Update with `claude plugin update pixel-pet`. Runs in Claude Code only (not Cowork).
+Update with `claude plugin update pixel-pet`. It shows in the desktop app only: terminal sessions keep the Bash statusline, and Cowork doesn't load plugins.
 
 ---
 
-<p align="center"><sub>Made with 🐾 for Claude Code statuslines.</sub></p>
+<p align="center"><sub>Made with 🐾 for Claude Code.</sub></p>
