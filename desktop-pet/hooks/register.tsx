@@ -212,6 +212,13 @@ const CLONE =
   [18, 19, 20, 21].map(x => px(x, 9, 0.5, 1, ORANGE)).join('') +
   px(18.5, 7, 0.5, 1, INK) + px(20.5, 7, 0.5, 1, INK)
 
+// A mentor: a mini Claude in a mortarboard, with a speech bubble that fills
+// with dots, then an idea.
+const MENTOR =
+  CLONE + px(17, 5.5, 5, 0.5, INK) + px(18.5, 6, 2, 0.5, INK) + px(21.5, 5.5, 0.5, 1.5, SPARKLE)
+const ADVICE_BUBBLE = px(17, -1.5, 5, 3, WHITE) + px(17.5, -2, 4, 4, WHITE) + px(18.5, 2, 1, 0.5, WHITE)
+const ADVICE_DOTS = [1, 2, 3].map(n => [0, 1, 2].slice(0, n).map(i => px(18 + i * 1.25, 0, 0.75, 0.75, INK)).join(''))
+
 // A clipboard; a check mark ticks on and off.
 const CLIPBOARD =
   px(17, 0.5, 3.5, 4.5, WOOD) + px(17.5, 1.5, 2.5, 3, PAPER) + px(18, 0, 1.5, 1, STEEL) +
@@ -827,6 +834,7 @@ function variantScene(m: Mood, act: Activity): string | undefined {
       return sprite(scene, 2.4, blinkTracks(m), { front: flipbook([light, trafficLight(LIGHT_OFF, LIGHT_OFF, LIGHT_OFF), light, light, light, light], 0.4) })
     }
     case 'clone': {
+      if (pick([true, false])) return mentorScene(m)
       // A mini clone pops out of a box.
       const scene = new Scene('happy')
       scene.gaze.at(0, '0.5 0')
@@ -859,6 +867,34 @@ function variantScene(m: Mood, act: Activity): string | undefined {
     default:
       return undefined
   }
+}
+
+// A subagent as a mentor: it pops up beside the pet and talks, the pet
+// listens and nods, then gets the idea.
+function mentorScene(m: Mood): string {
+  const Scene = moodScene(m)
+  const scene = new Scene(BASE_EYE[m])
+  scene.gaze.at(0, '0.5 0')
+  for (const t of [1, 1.6, 2.2]) scene.pose.hold(t, 0.2, '0 0.5')
+  // The idea lands: an arm up, a happy face.
+  scene.armL.hold(2.8, 1.4, '0 -2')
+  scene.emote({ eye: 'happy' }, 2.8, 1.4)
+  scene.bit(glyph('✦', 1, -0.5, SPARKLE, 3.5), 2.8, 1.4)
+  const mentor = new Track('0 2')
+  mentor.at(0.2, '0 0')
+  for (const t of [0.6, 1.3, 2]) mentor.hold(t, 0.2, '0 -0.5')
+  mentor.hold(3, 0.2, '0 0.5')
+  // The bubble fills with dots while the mentor talks, then shows "!".
+  const talk = new Track('0', 'opacity')
+  talk.hold(0.4, 2.4, '1')
+  const idea = new Track('0', 'opacity')
+  idea.hold(2.8, 1.4, '1')
+  return sprite(scene, 4.5, blinkTracks(m), {
+    outside:
+      mentor.wrap(MENTOR, 4.5) +
+      talk.wrap(ADVICE_BUBBLE + flipbook(ADVICE_DOTS, 0.4), 4.5) +
+      idea.wrap(ADVICE_BUBBLE + glyph('!', 19.5, 1.2, BULB_EDGE, 3.5), 4.5),
+  })
 }
 
 // A tool's prop in the right hand, animated on its own short loop; half the
