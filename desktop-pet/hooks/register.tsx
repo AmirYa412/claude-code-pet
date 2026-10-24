@@ -1552,7 +1552,8 @@ export const register: Register = on => {
     )
     const tierColor = (p: number | null) => (p === null ? GREEN : p >= 70 ? ALERT : p >= 41 ? YELLOW : GREEN)
     const ctxColor = tierColor(used)
-    const limitColor = tierColor(window5h)
+    // The limit stays quiet (the old cost's gray) until it's worth a look: yellow past 50%, red from 80%.
+    const limitColor = window5h === null || window5h <= 50 ? COST_TEXT : window5h >= 80 ? ALERT : YELLOW
     // The CTX bar: one even-height SVG bar.
     const bar =
       used === null ? null : <Svg source={ctxBarSvg(used, ctxColor)} alt={`Context ${Math.round(used)}% used`} width={BAR_W} height={BAR_H} />
