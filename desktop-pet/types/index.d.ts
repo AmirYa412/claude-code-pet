@@ -18,6 +18,8 @@ declare module 'claude-code' {
       activity: Activity
       ctx: number | null
       cost: number | null
+      /** The plan's 5-hour window, % used; null off a subscription. */
+      limit: number | null
       info: Info | null
     }
   }

@@ -165,3 +165,22 @@ test('a manual compact refills the CTX bar right away', async ($, on) => {
   expect(await petAlt(ui)).toContain('relaxed')
   await ui.unmount()
 })
+
+test('on a subscription the 5-hour limit ring replaces the cost', async ($, on) => {
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  await $.session.measure({ ...measure(5), cost: { usd: 0.13 }, rateLimits: [{ kind: 'five_hour', percentUsed: 62 }] })
+  const ui = await $.ui.mount(band('desktop'))
+  const alts = (await ui.findAll({ type: 'Svg' })).map(svg => String(svg.props.alt))
+  expect(alts).toContain('5-hour limit 62% used')
+  expect(await ui.find({ type: 'Text', text: /62%/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\$/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('with no plan limits the cost still shows', async ($, on) => {
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  await $.session.measure({ ...measure(5), cost: { usd: 0.13 } })
+  const ui = await $.ui.mount(band('desktop'))
+  expect(await ui.find({ type: 'Text', text: /\$0\.13/ })).toBeDefined()
+  await ui.unmount()
+})

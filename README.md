@@ -58,7 +58,7 @@ Already have a statusline? The installer asks whether to replace it or put the p
 </p>
 
 - **Reacts to Claude**: greets your messages and works along with each tool (🔨 edit, 🔍 read, 🚀 push, 🧪 tests…), two animations per tool.
-- **Live statusline**: model · dir · branch · CTX bar · cost, light on CPU.
+- **Live statusline**: model · dir · branch · CTX bar · 5h usage ring on Pro/Max (cost on an API key), light on CPU.
 
 **Requirements**
 - The Claude desktop app, Code tab (Claude Code with plugin support)

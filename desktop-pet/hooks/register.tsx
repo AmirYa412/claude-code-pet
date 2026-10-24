@@ -16,6 +16,7 @@ const reaction = atom({ plugin: 'pixel-pet', key: 'reaction' } as const, 'idle' 
 const activity = atom({ plugin: 'pixel-pet', key: 'activity' } as const, 'idle' as Activity)
 const ctx = atom({ plugin: 'pixel-pet', key: 'ctx' } as const, null as number | null)
 const cost = atom({ plugin: 'pixel-pet', key: 'cost' } as const, null as number | null)
+const limit = atom({ plugin: 'pixel-pet', key: 'limit' } as const, null as number | null)
 const info = atom({ plugin: 'pixel-pet', key: 'info' } as const, null as Info | null)
 
 const REACTION_MS = 4000
@@ -1355,6 +1356,23 @@ function ctxBarSvg(percent: number, color: string): string {
   )
 }
 
+// The plan's 5-hour usage as a ring that fills clockwise from the top; empty at 0%.
+const RING = 14
+function limitRingSvg(percent: number, color: string): string {
+  const r = 5.5
+  const round = 2 * Math.PI * r
+  const arc = (Math.max(0, Math.min(100, percent)) / 100) * round
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${RING} ${RING}" width="${RING}" height="${RING}">` +
+    `<circle cx="7" cy="7" r="${r}" fill="none" stroke="${TRACK}" stroke-width="2.5"/>` +
+    (arc > 0
+      ? `<circle cx="7" cy="7" r="${r}" fill="none" stroke="${color}" stroke-width="2.5" ` +
+        `stroke-dasharray="${arc.toFixed(2)} ${round.toFixed(2)}" transform="rotate(-90 7 7)"/>`
+      : '') +
+    '</svg>'
+  )
+}
+
 // $0.42 · $12.30 · $140
 function dollars(usd: number): string {
   return usd >= 100 ? `$${Math.round(usd)}` : `$${usd.toFixed(2)}`
@@ -1427,12 +1445,16 @@ export const register: Register = on => {
     const tier = tierOf(percent)
     if ((await read($, mood)) !== tier) await update($, mood, () => tier)
     if (percent !== undefined && (await read($, ctx)) !== percent) await update($, ctx, () => percent)
+    // On a subscription the plan's 5-hour window stands in for the cost, which is only an API-price estimate there.
+    const used = e.rateLimits.find(w => w.kind === 'five_hour')?.percentUsed
+    if (used !== undefined && (await read($, limit)) !== used) await update($, limit, () => used)
     const usd = e.cost?.usd
     const was = await read($, cost)
     if (usd !== undefined && was !== usd) {
       await update($, cost, () => usd)
-      // Passing $5, $10, $25... gets a reaction (not the first reading).
-      if (was !== null && COST_MILESTONES.some(mark => was < mark && usd >= mark)) await react($, 'money', REACTION_MS)
+      // Passing $5, $10, $25... gets a reaction (not the first reading), where the cost is real.
+      const isBilled = (await read($, limit)) === null
+      if (isBilled && was !== null && COST_MILESTONES.some(mark => was < mark && usd >= mark)) await react($, 'money', REACTION_MS)
     }
 
     return next(e)
@@ -1505,6 +1527,7 @@ export const register: Register = on => {
     const act = await read($, activity)
     const used = await read($, ctx)
     const spent = await read($, cost)
+    const window5h = await read($, limit)
     const fields = await read($, info)
     // Working when the engine says so, or between a sent message and its turn's end.
     const isWorking = e.props.isWorking || act !== 'idle'
@@ -1516,7 +1539,9 @@ export const register: Register = on => {
         <Svg source={SEP_PILL} alt="|" width={15} height={16} />
       </Box>
     )
-    const ctxColor = used === null ? GREEN : used >= 70 ? ALERT : used >= 41 ? YELLOW : GREEN
+    const tierColor = (p: number | null) => (p === null ? GREEN : p >= 70 ? ALERT : p >= 41 ? YELLOW : GREEN)
+    const ctxColor = tierColor(used)
+    const limitColor = tierColor(window5h)
     // The CTX bar: one even-height SVG bar.
     const bar =
       used === null ? null : <Svg source={ctxBarSvg(used, ctxColor)} alt={`Context ${Math.round(used)}% used`} width={BAR_W} height={BAR_H} />
@@ -1531,8 +1556,15 @@ export const register: Register = on => {
         {used !== null ? <Text color={ctxColor} bold wrap="truncate-end">CTX </Text> : null}
         {bar}
         {used !== null ? <Text color={ctxColor} bold wrap="truncate-end"> {Math.round(used)}%</Text> : null}
-        {spent !== null ? sep : null}
-        {spent !== null ? <Text color={COST_TEXT} wrap="truncate-end">{dollars(spent)}</Text> : null}
+        {window5h !== null || spent !== null ? sep : null}
+        {window5h !== null ? (
+          <Box flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
+            <Svg source={limitRingSvg(window5h, limitColor)} alt={`5-hour limit ${Math.round(window5h)}% used`} width={RING} height={RING} />
+            <Text color={limitColor} bold wrap="truncate-end">{Math.round(window5h)}%</Text>
+          </Box>
+        ) : spent !== null ? (
+          <Text color={COST_TEXT} wrap="truncate-end">{dollars(spent)}</Text>
+        ) : null}
       </Box>
     )
 
