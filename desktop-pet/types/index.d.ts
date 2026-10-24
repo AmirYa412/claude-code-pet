@@ -20,6 +20,8 @@ declare module 'claude-code' {
       cost: number | null
       /** The plan's 5-hour window, % used; null off a subscription. */
       limit: number | null
+      /** True once a response reported no plan windows: an API key, where the cost is real. */
+      isApi: boolean
       info: Info | null
     }
   }

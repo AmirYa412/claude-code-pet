@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, Timer } from 'claude-code'
+import type { EngineInterface, Register, SessionMeasureInput, Timer } from 'claude-code'
 
 import type { Activity, Info, Mood, Reaction } from '../types'
 
@@ -17,6 +17,7 @@ const activity = atom({ plugin: 'pixel-pet', key: 'activity' } as const, 'idle' 
 const ctx = atom({ plugin: 'pixel-pet', key: 'ctx' } as const, null as number | null)
 const cost = atom({ plugin: 'pixel-pet', key: 'cost' } as const, null as number | null)
 const limit = atom({ plugin: 'pixel-pet', key: 'limit' } as const, null as number | null)
+const isApi = atom({ plugin: 'pixel-pet', key: 'isApi' } as const, false)
 const info = atom({ plugin: 'pixel-pet', key: 'info' } as const, null as Info | null)
 
 const REACTION_MS = 4000
@@ -1378,6 +1379,28 @@ function dollars(usd: number): string {
   return usd >= 100 ? `$${Math.round(usd)}` : `$${usd.toFixed(2)}`
 }
 
+// The figures the statusline shows, from a measurement or a direct read.
+async function applyUsage($: EngineInterface, u: Pick<SessionMeasureInput, 'context' | 'rateLimits' | 'cost'>) {
+  const percent = u.context.percent
+  contextWindow = u.context.window
+  const tier = tierOf(percent)
+  if ((await read($, mood)) !== tier) await update($, mood, () => tier)
+  if (percent !== undefined && (await read($, ctx)) !== percent) await update($, ctx, () => percent)
+  // On a subscription the plan's 5-hour window stands in for the cost, which is only an API-price estimate there.
+  const used = u.rateLimits.find(w => w.kind === 'five_hour')?.percentUsed
+  if (used !== undefined && (await read($, limit)) !== used) await update($, limit, () => used)
+  // A response that reported no plan windows means an API key: only then is the cost real.
+  const priced = used === undefined && u.rateLimits.length === 0 && u.context.tokens !== undefined
+  if ((await read($, isApi)) !== priced && (priced || used !== undefined)) await update($, isApi, () => priced)
+  const usd = u.cost?.usd
+  const was = await read($, cost)
+  if (usd !== undefined && was !== usd) {
+    await update($, cost, () => usd)
+    // Passing $5, $10, $25... gets a reaction (not the first reading), where the cost is real.
+    if ((await read($, isApi)) && was !== null && COST_MILESTONES.some(mark => was < mark && usd >= mark)) await react($, 'money', REACTION_MS)
+  }
+}
+
 // --- Reactions and activity --------------------------------------------------------
 
 const TOOL_PROPS: Record<string, Activity> = {
@@ -1435,27 +1458,14 @@ export const register: Register = on => {
     await react($, 'idle')
     await doing($, 'idle')
     await refreshInfo($).catch(() => undefined)
+    // Show the figures now, not only after the next response.
+    await applyUsage($, await $.session.usage()).catch(() => undefined)
 
     return next(e)
   })
 
   on('session.measure', async ($, e, next) => {
-    const percent = e.context.percent
-    contextWindow = e.context.window
-    const tier = tierOf(percent)
-    if ((await read($, mood)) !== tier) await update($, mood, () => tier)
-    if (percent !== undefined && (await read($, ctx)) !== percent) await update($, ctx, () => percent)
-    // On a subscription the plan's 5-hour window stands in for the cost, which is only an API-price estimate there.
-    const used = e.rateLimits.find(w => w.kind === 'five_hour')?.percentUsed
-    if (used !== undefined && (await read($, limit)) !== used) await update($, limit, () => used)
-    const usd = e.cost?.usd
-    const was = await read($, cost)
-    if (usd !== undefined && was !== usd) {
-      await update($, cost, () => usd)
-      // Passing $5, $10, $25... gets a reaction (not the first reading), where the cost is real.
-      const isBilled = (await read($, limit)) === null
-      if (isBilled && was !== null && COST_MILESTONES.some(mark => was < mark && usd >= mark)) await react($, 'money', REACTION_MS)
-    }
+    await applyUsage($, e)
 
     return next(e)
   })
@@ -1528,6 +1538,7 @@ export const register: Register = on => {
     const used = await read($, ctx)
     const spent = await read($, cost)
     const window5h = await read($, limit)
+    const showCost = (await read($, isApi)) && spent !== null
     const fields = await read($, info)
     // Working when the engine says so, or between a sent message and its turn's end.
     const isWorking = e.props.isWorking || act !== 'idle'
@@ -1556,14 +1567,14 @@ export const register: Register = on => {
         {used !== null ? <Text color={ctxColor} bold wrap="truncate-end">CTX </Text> : null}
         {bar}
         {used !== null ? <Text color={ctxColor} bold wrap="truncate-end"> {Math.round(used)}%</Text> : null}
-        {window5h !== null || spent !== null ? sep : null}
+        {window5h !== null || showCost ? sep : null}
         {window5h !== null ? (
           <Box flexDirection="row" alignItems="center" gap={1} flexShrink={0}>
             <Svg source={limitRingSvg(window5h, limitColor)} alt={`5-hour limit ${Math.round(window5h)}% used`} width={RING} height={RING} />
             <Text color={limitColor} bold wrap="truncate-end">{Math.round(window5h)}%</Text>
           </Box>
-        ) : spent !== null ? (
-          <Text color={COST_TEXT} wrap="truncate-end">{dollars(spent)}</Text>
+        ) : showCost ? (
+          <Text color={COST_TEXT} wrap="truncate-end">{dollars(spent!)}</Text>
         ) : null}
       </Box>
     )

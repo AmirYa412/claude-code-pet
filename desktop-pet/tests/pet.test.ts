@@ -120,9 +120,9 @@ test('shell commands pick their own props: tests show their result, pushes launc
   await ui.unmount()
 })
 
-test('passing a cost milestone gets a reaction', async ($, on) => {
+test('on an API key, passing a cost milestone gets a reaction', async ($, on) => {
   on('session.measure', ($, e) => ({ changed: e.changed }))
-  const at = (usd: number) => ({ context: { window: 200000 }, rateLimits: [], changed: [], cost: { usd } })
+  const at = (usd: number) => ({ context: { window: 200000, tokens: 1000 }, rateLimits: [], changed: [], cost: { usd } })
   await $.session.measure(at(4.5))
   await $.session.measure(at(5.2))
   const ui = await $.ui.mount(band('desktop'))
@@ -182,5 +182,13 @@ test('with no plan limits the cost still shows', async ($, on) => {
   await $.session.measure({ ...measure(5), cost: { usd: 0.13 } })
   const ui = await $.ui.mount(band('desktop'))
   expect(await ui.find({ type: 'Text', text: /\$0\.13/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the cost stays hidden until a response shows the session is on an API key', async ($, on) => {
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  await $.session.measure({ context: { window: 200000 }, rateLimits: [], changed: [], cost: { usd: 0.13 } })
+  const ui = await $.ui.mount(band('desktop'))
+  expect(await ui.find({ type: 'Text', text: /\$/ })).toBeUndefined()
   await ui.unmount()
 })
